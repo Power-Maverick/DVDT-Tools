@@ -2,9 +2,15 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./"
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "cli.ts"
+  ],
+  "exclude": [
+    "example.ts",
+    "example-save.ts",
+    "example-standalone.ts"
   ]
 }

@@ -4,6 +4,9 @@
   "description": "Generate Entity Relationship Diagrams (ERD) for Dataverse solutions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "erd-generator": "dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "test": "echo \"No tests yet\"",
@@ -18,6 +21,7 @@
   "author": "Power-Maverick",
   "license": "GPL-2.0",
   "dependencies": {
-    "@types/node": "^20.10.6"
+    "@types/node": "^20.10.6",
+    "axios": "1.12.2"
   }
 }
