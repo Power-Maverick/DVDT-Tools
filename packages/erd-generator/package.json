@@ -10,7 +10,9 @@
   "scripts": {
     "build": "tsc",
     "test": "echo \"No tests yet\"",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "ui": "node ui/server.js",
+    "ui:dev": "nodemon ui/server.js"
   },
   "keywords": [
     "dataverse",
@@ -22,6 +24,10 @@
   "license": "GPL-2.0",
   "dependencies": {
     "@types/node": "^20.10.6",
-    "axios": "1.12.2"
+    "axios": "1.12.2",
+    "express": "4.21.2"
+  },
+  "devDependencies": {
+    "nodemon": "3.1.10"
   }
 }

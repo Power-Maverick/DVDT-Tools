@@ -13,11 +13,13 @@ This is a monorepo containing various tools for working with Microsoft Dataverse
 Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Works as a **standalone tool** that connects directly to Dataverse using an access token.
 
 **Key Features:**
+- **Web UI**: Interactive browser-based interface for generating ERDs
 - Standalone operation with Dataverse token authentication
 - Fetch solution metadata automatically from Dataverse
 - Multiple output formats: Mermaid, PlantUML, Graphviz DOT
 - CLI tool for command-line usage
 - Programmatic API for VS Code extension integration
+- Download diagrams as PNG, SVG, or source code
 
 ## Getting Started
 

@@ -4,6 +4,7 @@ Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Works as a
 
 ## Features
 
+- **🌐 Web UI**: Interactive browser-based interface for generating ERDs
 - **Standalone operation**: Connect directly to Dataverse with an access token
 - **Fetch metadata automatically**: Retrieve solution, table, attribute, and relationship metadata from Dataverse
 - Generate ERD from Dataverse solution metadata
@@ -17,12 +18,39 @@ Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Works as a
   - Limit number of attributes per table
 - **CLI tool** for command-line usage
 - **Programmatic API** for integration with other tools
+- **Download options**:
+  - PNG images
+  - SVG vectors
+  - Source code (.mmd, .puml, .dot)
 
 ## Installation
 
 ```bash
 npm install @dvdt-tools/erd-generator
 ```
+
+## Quick Start
+
+### Web UI (Recommended)
+
+The easiest way to use the ERD generator is through the web interface:
+
+1. **Start the UI server**:
+   ```bash
+   npm run ui
+   ```
+
+2. **Open your browser** to `http://localhost:3000`
+
+3. **Follow the steps in the UI**:
+   - Enter your Dataverse environment URL
+   - Paste your access token
+   - Select a solution from the list
+   - Generate and download your ERD
+
+![ERD Generator Web UI](https://github.com/user-attachments/assets/2fcdbedc-d0c0-45fb-ac4c-1c24f6fa2ad4)
+
+See the [UI Documentation](./ui/README.md) for more details.
 
 ## Usage
 
