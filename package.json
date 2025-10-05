@@ -1,0 +1,27 @@
+{
+  "name": "dvdt-tools",
+  "version": "1.0.0",
+  "description": "Tools that can be integrated with Dataverse DevTools",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "keywords": [
+    "dataverse",
+    "devtools",
+    "power-platform"
+  ],
+  "author": "Power-Maverick",
+  "license": "GPL-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

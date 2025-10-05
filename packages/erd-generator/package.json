@@ -1,0 +1,23 @@
+{
+  "name": "@dvdt-tools/erd-generator",
+  "version": "1.0.0",
+  "description": "Generate Entity Relationship Diagrams (ERD) for Dataverse solutions",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"No tests yet\"",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "dataverse",
+    "erd",
+    "entity-relationship-diagram",
+    "power-platform"
+  ],
+  "author": "Power-Maverick",
+  "license": "GPL-2.0",
+  "dependencies": {
+    "@types/node": "^20.10.6"
+  }
+}
