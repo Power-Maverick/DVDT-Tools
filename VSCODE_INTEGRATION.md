@@ -2,6 +2,8 @@
 
 This guide shows how to integrate the ERD Generator as a webview panel in Dataverse DevTools (DVDT) with **minimal changes to DVDT**.
 
+> **🧪 Local Testing:** For instructions on testing the ERD tool with a local copy of DVDT, see [LOCAL_TESTING.md](./LOCAL_TESTING.md).
+
 ## Integration Philosophy
 
 The ERD tool is designed as a **plug-and-play component** for DVDT:
