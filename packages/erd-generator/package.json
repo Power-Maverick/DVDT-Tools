@@ -28,6 +28,15 @@
     "express": "4.21.2"
   },
   "devDependencies": {
+    "@types/vscode": "1.85.0",
     "nodemon": "3.1.10"
+  },
+  "peerDependencies": {
+    "vscode": "^1.85.0"
+  },
+  "peerDependenciesMeta": {
+    "vscode": {
+      "optional": true
+    }
   }
 }

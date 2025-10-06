@@ -29,7 +29,32 @@ Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Works as a
 npm install @dvdt-tools/erd-generator
 ```
 
-## Integration with Dataverse DevTools
+## Integration Options
+
+### Option 1: VS Code WebView Panel (Recommended for DVDT)
+
+Integrate as a webview panel in VS Code extensions with minimal code:
+
+```typescript
+import { registerERDTool } from '@dvdt-tools/erd-generator';
+
+// In your extension's activate function
+registerERDTool(context, {
+  getEnvironmentUrl: () => yourConfig.getCurrentEnvironment(),
+  getAccessToken: () => yourAuth.getAccessToken()
+});
+```
+
+That's it! The ERD tool will:
+- Open as a panel when commanded
+- List all solutions from the environment
+- Allow users to select and generate ERDs
+- Handle downloading and copying
+- Provide a complete UI experience
+
+See [VSCODE_INTEGRATION.md](../../VSCODE_INTEGRATION.md) for complete guide.
+
+### Option 2: Programmatic API (Minimal Integration)
 
 **Minimal integration - just 3 lines of code:**
 
