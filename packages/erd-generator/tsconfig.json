@@ -5,12 +5,13 @@
     "rootDir": "./"
   },
   "include": [
-    "src/**/*",
-    "cli.ts"
+    "src/**/*"
   ],
   "exclude": [
     "example.ts",
     "example-save.ts",
-    "example-standalone.ts"
+    "example-standalone.ts",
+    "example-minimal-integration.ts",
+    "cli.ts"
   ]
 }

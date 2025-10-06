@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial monorepo structure with npm workspaces
 - ERD Generator package (`@dvdt-tools/erd-generator`)
+  - **Minimal integration design** - requires only 3 lines of code to integrate with Dataverse DevTools
   - **Web UI for generating ERDs with interactive interface**
     - Browse and select solutions visually
     - Generate diagrams with live preview
@@ -28,11 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic fetching of solutions, tables, attributes, and relationships
   - List available solutions from Dataverse
 - Example files demonstrating ERD generation
+  - Minimal integration example for Dataverse DevTools
   - Standalone mode with Dataverse authentication
   - Programmatic mode with pre-fetched data
   - File saving capabilities
 - Comprehensive documentation
-  - Integration guide for Dataverse DevTools VS Code extension
+  - Integration guide emphasizing minimal integration approach
   - Web UI documentation
 - Contributing guidelines
 
