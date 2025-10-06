@@ -1,35 +1,29 @@
 {
   "name": "@dvdt-tools/erd-generator",
   "version": "1.0.0",
-  "description": "Generate Entity Relationship Diagrams (ERD) for Dataverse solutions",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "erd-generator": "dist/cli.js"
-  },
+  "description": "Generate Entity Relationship Diagrams (ERD) for Dataverse solutions - VS Code WebView integration for DVDT",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "echo \"No tests yet\"",
-    "dev": "tsc --watch",
-    "ui": "node ui/server.js",
-    "ui:dev": "nodemon ui/server.js"
+    "dev": "tsc --watch"
   },
   "keywords": [
     "dataverse",
     "erd",
     "entity-relationship-diagram",
-    "power-platform"
+    "power-platform",
+    "vscode-extension",
+    "dvdt"
   ],
   "author": "Power-Maverick",
   "license": "GPL-2.0",
   "dependencies": {
     "@types/node": "^20.10.6",
-    "axios": "1.12.2",
-    "express": "4.21.2"
+    "axios": "1.12.2"
   },
   "devDependencies": {
-    "@types/vscode": "1.85.0",
-    "nodemon": "3.1.10"
+    "@types/vscode": "1.85.0"
   },
   "peerDependencies": {
     "vscode": "^1.85.0"

@@ -12,15 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ERD Generator package (`@dvdt-tools/erd-generator`)
   - **VS Code WebView integration** - embeddable panel for Dataverse DevTools (~10 lines of code)
   - **Self-contained WebView UI** - complete UI that runs in VS Code panels
-  - **Minimal integration design** - requires only function calls to integrate with Dataverse DevTools
-  - **Web UI for generating ERDs with interactive interface**
-    - Browse and select solutions visually
-    - Generate diagrams with live preview
-    - Download as PNG, SVG, or source code
-    - Step-by-step guided workflow
-  - **Standalone operation with Dataverse token authentication**
-  - **DataverseClient for fetching solution metadata from Dataverse Web API**
-  - **CLI tool for command-line usage**
+  - **Minimal integration design** - DVDT provides credentials, ERD tool handles everything else
   - Support for Mermaid diagram format
   - Support for PlantUML diagram format
   - Support for Graphviz DOT format
@@ -30,17 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TypeScript types for Dataverse solutions, tables, attributes, and relationships
   - Automatic fetching of solutions, tables, attributes, and relationships
   - List available solutions from Dataverse
-- Example files demonstrating ERD generation
-  - VS Code webview integration example
-  - Minimal integration example for Dataverse DevTools
-  - Standalone mode with Dataverse authentication
-  - Programmatic mode with pre-fetched data
-  - File saving capabilities
+  - File saving and clipboard operations
 - Comprehensive documentation
   - VS Code WebView integration guide (VSCODE_INTEGRATION.md)
-  - Integration guide emphasizing minimal integration approach
-  - Web UI documentation
+  - Package documentation
 - Contributing guidelines
+
+### Removed
+- CLI tool (not needed for DVDT integration)
+- Standalone web server (not needed for DVDT integration)
+- Example files for standalone usage
+- Express and nodemon dependencies
 
 ## [1.0.0] - 2024-10-05
 
