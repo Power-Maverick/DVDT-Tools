@@ -13,6 +13,7 @@ This is a monorepo containing various tools for working with Microsoft Dataverse
 Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Works as a **standalone tool** that connects directly to Dataverse using an access token.
 
 **Key Features:**
+- **Minimal Integration**: Just 3 lines of code to integrate with Dataverse DevTools
 - **Web UI**: Interactive browser-based interface for generating ERDs
 - Standalone operation with Dataverse token authentication
 - Fetch solution metadata automatically from Dataverse
@@ -20,6 +21,15 @@ Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Works as a
 - CLI tool for command-line usage
 - Programmatic API for VS Code extension integration
 - Download diagrams as PNG, SVG, or source code
+
+**Quick Integration Example:**
+```typescript
+import { DataverseClient, ERDGenerator } from '@dvdt-tools/erd-generator';
+
+const client = new DataverseClient({ environmentUrl, accessToken: token });
+const solution = await client.fetchSolution('SolutionName');
+const erd = new ERDGenerator({ format: 'mermaid' }).generate(solution);
+```
 
 ## Getting Started
 

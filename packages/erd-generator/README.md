@@ -29,6 +29,23 @@ Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Works as a
 npm install @dvdt-tools/erd-generator
 ```
 
+## Integration with Dataverse DevTools
+
+**Minimal integration - just 3 lines of code:**
+
+```typescript
+import { DataverseClient, ERDGenerator } from '@dvdt-tools/erd-generator';
+
+// 1. Pass token from DVDT
+const client = new DataverseClient({ environmentUrl, accessToken: token });
+
+// 2. Fetch and generate
+const solution = await client.fetchSolution('SolutionName');
+const erd = new ERDGenerator({ format: 'mermaid' }).generate(solution);
+```
+
+See [example-minimal-integration.ts](./example-minimal-integration.ts) for a complete minimal example.
+
 ## Quick Start
 
 ### Web UI (Recommended)

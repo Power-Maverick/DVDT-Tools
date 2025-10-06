@@ -52,6 +52,47 @@ The ERD Generator is designed to work as a **standalone tool** that receives an 
 
 ## Step-by-Step Integration
 
+### Minimal Integration (3 Steps)
+
+The ERD Generator requires minimal integration - just 3 simple steps:
+
+### 1. Install the Package
+
+```bash
+npm install @dvdt-tools/erd-generator
+```
+
+### 2. Import and Use with Token
+
+```typescript
+import { DataverseClient, ERDGenerator } from '@dvdt-tools/erd-generator';
+
+// Get token from Dataverse DevTools (your existing auth)
+const token = await dvdtAuth.getAccessToken();
+const environmentUrl = dvdtConfig.getCurrentEnvironment();
+
+// Create client with token - that's it!
+const client = new DataverseClient({
+  environmentUrl: environmentUrl,
+  accessToken: token
+});
+
+// Fetch and generate
+const solution = await client.fetchSolution('SolutionName');
+const generator = new ERDGenerator({ format: 'mermaid' });
+const erd = generator.generate(solution);
+```
+
+### 3. Display the Result
+
+Show the ERD in VS Code using your preferred method (webview, preview, etc.)
+
+---
+
+## Detailed Integration Steps (Optional)
+
+If you need more control, here are additional options:
+
 ### 1. Install the Package
 
 Add the ERD generator to your VS Code extension:
@@ -82,7 +123,7 @@ const environmentUrl = dvdtConfig.getCurrentEnvironment();
 const client = new DataverseClient({
   environmentUrl: environmentUrl,
   accessToken: token,
-  apiVersion: '9.2' // Optional
+  apiVersion: '9.2' // Optional, defaults to 9.2
 });
 ```
 
