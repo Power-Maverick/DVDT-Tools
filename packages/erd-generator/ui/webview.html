@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src https: data:;">
+    <title>Dataverse ERD Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif);
+            background: var(--vscode-editor-background, #1e1e1e);
+            color: var(--vscode-editor-foreground, #d4d4d4);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--vscode-foreground, #cccccc);
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        .card {
+            background: var(--vscode-editor-background, #252526);
+            border: 1px solid var(--vscode-panel-border, #3c3c3c);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 10px;
+        }
+
+        .step::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--vscode-panel-border, #3c3c3c);
+            z-index: -1;
+        }
+
+        .step:last-child::after {
+            display: none;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--vscode-button-secondaryBackground, #3a3d41);
+            color: var(--vscode-button-secondaryForeground, #cccccc);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .step.active .step-number {
+            background: var(--vscode-button-background, #0e639c);
+            color: var(--vscode-button-foreground, #ffffff);
+        }
+
+        .step.completed .step-number {
+            background: var(--vscode-testing-iconPassed, #73c991);
+            color: #ffffff;
+        }
+
+        .step-label {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .step.active .step-label {
+            opacity: 1;
+            font-weight: 600;
+        }
+
+        .info-message {
+            background: var(--vscode-inputValidation-infoBackground, #063b49);
+            border: 1px solid var(--vscode-inputValidation-infoBorder, #007acc);
+            color: var(--vscode-inputValidation-infoForeground, #ffffff);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .solutions-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .solution-card {
+            padding: 20px;
+            border: 1px solid var(--vscode-panel-border, #3c3c3c);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--vscode-editor-background, #1e1e1e);
+        }
+
+        .solution-card:hover {
+            border-color: var(--vscode-focusBorder, #007acc);
+            background: var(--vscode-list-hoverBackground, #2a2d2e);
+        }
+
+        .solution-card.selected {
+            border-color: var(--vscode-focusBorder, #007acc);
+            background: var(--vscode-list-activeSelectionBackground, #094771);
+        }
+
+        .solution-card h3 {
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        .solution-card p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin: 4px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid var(--vscode-panel-border, #3c3c3c);
+            border-top: 4px solid var(--vscode-button-background, #0e639c);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+            border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+            color: var(--vscode-inputValidation-errorForeground, #ffffff);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--vscode-button-background, #0e639c);
+            color: var(--vscode-button-foreground, #ffffff);
+        }
+
+        .btn-primary:hover {
+            background: var(--vscode-button-hoverBackground, #1177bb);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--vscode-button-secondaryBackground, #3a3d41);
+            color: var(--vscode-button-secondaryForeground, #cccccc);
+            margin-left: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--vscode-button-secondaryHoverBackground, #45494e);
+        }
+
+        .format-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .format-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--vscode-panel-border, #3c3c3c);
+            background: var(--vscode-button-secondaryBackground, #3a3d41);
+            color: var(--vscode-button-secondaryForeground, #cccccc);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .format-btn.active {
+            border-color: var(--vscode-focusBorder, #007acc);
+            background: var(--vscode-button-background, #0e639c);
+            color: var(--vscode-button-foreground, #ffffff);
+        }
+
+        .diagram-container {
+            margin-top: 20px;
+            border: 1px solid var(--vscode-panel-border, #3c3c3c);
+            border-radius: 8px;
+            padding: 20px;
+            background: var(--vscode-editor-background, #1e1e1e);
+            overflow: auto;
+            max-height: 600px;
+        }
+
+        .diagram-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        pre {
+            background: var(--vscode-textCodeBlock-background, #1e1e1e);
+            padding: 20px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: var(--vscode-editor-font-family, 'Courier New', monospace);
+            font-size: 13px;
+            border: 1px solid var(--vscode-panel-border, #3c3c3c);
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ Dataverse ERD Generator</h1>
+            <p>Generate Entity Relationship Diagrams from your Dataverse solutions</p>
+        </div>
+
+        <div class="card">
+            <div class="step-indicator">
+                <div class="step completed" id="step1">
+                    <div class="step-number">1</div>
+                    <div class="step-label">Connected</div>
+                </div>
+                <div class="step active" id="step2">
+                    <div class="step-number">2</div>
+                    <div class="step-label">Select Solution</div>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-number">3</div>
+                    <div class="step-label">Generate ERD</div>
+                </div>
+            </div>
+
+            <div id="connectionInfo" class="info-message">
+                <strong>✓ Connected to Dataverse</strong><br>
+                Environment: <span id="envDisplay"></span>
+            </div>
+
+            <div id="errorMessage" class="error hidden"></div>
+
+            <div id="solutionsSection">
+                <h2>Select a Solution</h2>
+                <div id="loadingIndicator" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Loading solutions...</p>
+                </div>
+                <div id="solutionsList" class="solutions-list"></div>
+            </div>
+
+            <div id="generateSection" class="hidden">
+                <h2>Generate ERD</h2>
+                <div class="format-selector">
+                    <label style="font-weight: 600; margin-right: 10px;">Output Format:</label>
+                    <button class="format-btn active" data-format="mermaid">Mermaid</button>
+                    <button class="format-btn" data-format="plantuml">PlantUML</button>
+                    <button class="format-btn" data-format="graphviz">Graphviz</button>
+                </div>
+                <button class="btn btn-primary" id="generateBtn">Generate ERD</button>
+                <button class="btn btn-secondary hidden" id="newDiagramBtn">Generate Another</button>
+            </div>
+        </div>
+
+        <div id="diagramSection" class="card hidden">
+            <h2>Generated ERD</h2>
+            <div class="diagram-controls">
+                <button class="btn btn-secondary" id="downloadSourceBtn">📥 Download Source</button>
+                <button class="btn btn-secondary" id="copyBtn">📋 Copy to Clipboard</button>
+            </div>
+            <div id="diagramContainer" class="diagram-container"></div>
+        </div>
+    </div>
+
+    <script>
+        // VS Code API
+        const vscode = acquireVsCodeApi();
+
+        // Global state
+        let state = {
+            environmentUrl: null,
+            accessToken: null,
+            solutions: [],
+            selectedSolution: null,
+            selectedFormat: 'mermaid',
+            generatedDiagram: null
+        };
+
+        // DOM elements
+        const elements = {
+            generateBtn: document.getElementById('generateBtn'),
+            newDiagramBtn: document.getElementById('newDiagramBtn'),
+            downloadSourceBtn: document.getElementById('downloadSourceBtn'),
+            copyBtn: document.getElementById('copyBtn'),
+            errorMessage: document.getElementById('errorMessage'),
+            solutionsSection: document.getElementById('solutionsSection'),
+            generateSection: document.getElementById('generateSection'),
+            diagramSection: document.getElementById('diagramSection'),
+            loadingIndicator: document.getElementById('loadingIndicator'),
+            solutionsList: document.getElementById('solutionsList'),
+            diagramContainer: document.getElementById('diagramContainer'),
+            step1: document.getElementById('step1'),
+            step2: document.getElementById('step2'),
+            step3: document.getElementById('step3'),
+            envDisplay: document.getElementById('envDisplay'),
+            connectionInfo: document.getElementById('connectionInfo')
+        };
+
+        // Helper functions
+        function showError(message) {
+            elements.errorMessage.textContent = message;
+            elements.errorMessage.classList.remove('hidden');
+            setTimeout(() => {
+                elements.errorMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        function updateStep(step) {
+            [elements.step1, elements.step2, elements.step3].forEach((s, i) => {
+                s.classList.remove('active', 'completed');
+                if (i < step - 1) {
+                    s.classList.add('completed');
+                } else if (i === step - 1) {
+                    s.classList.add('active');
+                }
+            });
+        }
+
+        // Initialize: Request environment URL and token from VS Code extension
+        function initialize() {
+            vscode.postMessage({
+                command: 'requestCredentials'
+            });
+        }
+
+        // Handle messages from VS Code extension
+        window.addEventListener('message', event => {
+            const message = event.data;
+
+            switch (message.command) {
+                case 'setCredentials':
+                    state.environmentUrl = message.environmentUrl;
+                    state.accessToken = message.accessToken;
+                    elements.envDisplay.textContent = message.environmentUrl;
+                    loadSolutions();
+                    break;
+
+                case 'solutionsLoaded':
+                    state.solutions = message.solutions;
+                    displaySolutions(message.solutions);
+                    elements.loadingIndicator.classList.add('hidden');
+                    break;
+
+                case 'solutionsError':
+                    showError(`Failed to load solutions: ${message.error}`);
+                    elements.loadingIndicator.classList.add('hidden');
+                    break;
+
+                case 'erdGenerated':
+                    state.generatedDiagram = message.diagram;
+                    displayDiagram(message.diagram, state.selectedFormat);
+                    elements.diagramSection.classList.remove('hidden');
+                    elements.newDiagramBtn.classList.remove('hidden');
+                    elements.generateBtn.disabled = false;
+                    elements.generateBtn.textContent = 'Generate ERD';
+                    break;
+
+                case 'erdError':
+                    showError(`Failed to generate ERD: ${message.error}`);
+                    elements.generateBtn.disabled = false;
+                    elements.generateBtn.textContent = 'Generate ERD';
+                    break;
+            }
+        });
+
+        // Load solutions
+        function loadSolutions() {
+            elements.loadingIndicator.classList.remove('hidden');
+            vscode.postMessage({
+                command: 'listSolutions',
+                environmentUrl: state.environmentUrl,
+                accessToken: state.accessToken
+            });
+        }
+
+        // Display solutions
+        function displaySolutions(solutions) {
+            elements.solutionsList.innerHTML = '';
+            
+            solutions.forEach(solution => {
+                const card = document.createElement('div');
+                card.className = 'solution-card';
+                card.innerHTML = `
+                    <h3>${solution.displayName}</h3>
+                    <p><strong>Unique Name:</strong> ${solution.uniqueName}</p>
+                    <p><strong>Version:</strong> ${solution.version}</p>
+                `;
+                
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.solution-card').forEach(c => {
+                        c.classList.remove('selected');
+                    });
+                    
+                    card.classList.add('selected');
+                    state.selectedSolution = solution.uniqueName;
+                    
+                    elements.generateSection.classList.remove('hidden');
+                    updateStep(3);
+                });
+                
+                elements.solutionsList.appendChild(card);
+            });
+        }
+
+        // Format selector
+        document.querySelectorAll('.format-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.selectedFormat = btn.dataset.format;
+            });
+        });
+
+        // Generate ERD
+        elements.generateBtn.addEventListener('click', () => {
+            if (!state.selectedSolution) {
+                showError('Please select a solution first');
+                return;
+            }
+
+            elements.generateBtn.disabled = true;
+            elements.generateBtn.textContent = 'Generating...';
+
+            vscode.postMessage({
+                command: 'generateERD',
+                environmentUrl: state.environmentUrl,
+                accessToken: state.accessToken,
+                solutionName: state.selectedSolution,
+                format: state.selectedFormat
+            });
+        });
+
+        // Display diagram
+        function displayDiagram(diagram, format) {
+            elements.diagramContainer.innerHTML = `<pre>${diagram}</pre>`;
+        }
+
+        // Download source
+        elements.downloadSourceBtn.addEventListener('click', () => {
+            if (!state.generatedDiagram) {
+                showError('No diagram to download');
+                return;
+            }
+
+            const extensions = {
+                'mermaid': 'mmd',
+                'plantuml': 'puml',
+                'graphviz': 'dot'
+            };
+
+            vscode.postMessage({
+                command: 'saveFile',
+                content: state.generatedDiagram,
+                fileName: `${state.selectedSolution}-erd.${extensions[state.selectedFormat]}`
+            });
+        });
+
+        // Copy to clipboard
+        elements.copyBtn.addEventListener('click', () => {
+            if (!state.generatedDiagram) {
+                showError('No diagram to copy');
+                return;
+            }
+
+            vscode.postMessage({
+                command: 'copyToClipboard',
+                content: state.generatedDiagram
+            });
+
+            const originalText = elements.copyBtn.textContent;
+            elements.copyBtn.textContent = '✓ Copied!';
+            setTimeout(() => {
+                elements.copyBtn.textContent = originalText;
+            }, 2000);
+        });
+
+        // New diagram
+        elements.newDiagramBtn.addEventListener('click', () => {
+            document.querySelectorAll('.solution-card').forEach(c => {
+                c.classList.remove('selected');
+            });
+            
+            state.selectedSolution = null;
+            state.generatedDiagram = null;
+            
+            elements.generateSection.classList.add('hidden');
+            elements.diagramSection.classList.add('hidden');
+            elements.newDiagramBtn.classList.add('hidden');
+            
+            updateStep(2);
+        });
+
+        // Initialize on load
+        initialize();
+    </script>
+</body>
+</html>

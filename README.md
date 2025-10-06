@@ -13,16 +13,27 @@ This is a monorepo containing various tools for working with Microsoft Dataverse
 Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Works as a **standalone tool** that connects directly to Dataverse using an access token.
 
 **Key Features:**
-- **Minimal Integration**: Just 3 lines of code to integrate with Dataverse DevTools
+- **VS Code WebView Integration**: Embeddable panel for Dataverse DevTools with ~10 lines of integration code
+- **Minimal Integration**: Just 3 lines of code to integrate programmatically, or use built-in webview panel
 - **Web UI**: Interactive browser-based interface for generating ERDs
 - Standalone operation with Dataverse token authentication
 - Fetch solution metadata automatically from Dataverse
 - Multiple output formats: Mermaid, PlantUML, Graphviz DOT
 - CLI tool for command-line usage
-- Programmatic API for VS Code extension integration
+- Programmatic API for custom integrations
 - Download diagrams as PNG, SVG, or source code
 
-**Quick Integration Example:**
+**DVDT Integration (WebView Panel):**
+```typescript
+import { registerERDTool } from '@dvdt-tools/erd-generator';
+
+registerERDTool(context, {
+  getEnvironmentUrl: () => dvdtConfig.getCurrentEnvironment(),
+  getAccessToken: () => dvdtAuth.getAccessToken()
+});
+```
+
+**Quick Programmatic Integration:**
 ```typescript
 import { DataverseClient, ERDGenerator } from '@dvdt-tools/erd-generator';
 
@@ -30,6 +41,8 @@ const client = new DataverseClient({ environmentUrl, accessToken: token });
 const solution = await client.fetchSolution('SolutionName');
 const erd = new ERDGenerator({ format: 'mermaid' }).generate(solution);
 ```
+
+See [VSCODE_INTEGRATION.md](./VSCODE_INTEGRATION.md) for complete WebView integration guide.
 
 ## Getting Started
 

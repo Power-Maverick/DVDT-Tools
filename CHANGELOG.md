@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial monorepo structure with npm workspaces
 - ERD Generator package (`@dvdt-tools/erd-generator`)
-  - **Minimal integration design** - requires only 3 lines of code to integrate with Dataverse DevTools
+  - **VS Code WebView integration** - embeddable panel for Dataverse DevTools (~10 lines of code)
+  - **Self-contained WebView UI** - complete UI that runs in VS Code panels
+  - **Minimal integration design** - requires only function calls to integrate with Dataverse DevTools
   - **Web UI for generating ERDs with interactive interface**
     - Browse and select solutions visually
     - Generate diagrams with live preview
@@ -29,11 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic fetching of solutions, tables, attributes, and relationships
   - List available solutions from Dataverse
 - Example files demonstrating ERD generation
+  - VS Code webview integration example
   - Minimal integration example for Dataverse DevTools
   - Standalone mode with Dataverse authentication
   - Programmatic mode with pre-fetched data
   - File saving capabilities
 - Comprehensive documentation
+  - VS Code WebView integration guide (VSCODE_INTEGRATION.md)
   - Integration guide emphasizing minimal integration approach
   - Web UI documentation
 - Contributing guidelines
