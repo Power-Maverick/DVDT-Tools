@@ -32,6 +32,10 @@ registerERDTool(context, {
 
 See [VSCODE_INTEGRATION.md](./VSCODE_INTEGRATION.md) for complete WebView integration guide.
 
+**Local Testing:**
+
+Want to test the ERD tool with a local copy of Dataverse DevTools? See [LOCAL_TESTING.md](./LOCAL_TESTING.md) for step-by-step instructions on setting up local development and testing.
+
 ## Getting Started
 
 ### Prerequisites
