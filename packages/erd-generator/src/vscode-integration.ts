@@ -1,13 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { DataverseClient } from './DataverseClient';
-import { ERDGenerator } from './ERDGenerator';
+import * as fs from 'fs';
 
 /**
  * ERD Tool WebView Panel for Dataverse DevTools Integration
  * 
  * This class provides a minimal integration point for DVDT.
- * DVDT only needs to call showERDPanel() with the required parameters.
+ * The webview handles all Dataverse API calls directly using the bundled JavaScript.
  */
 export class ERDToolPanel {
     public static currentPanel: ERDToolPanel | undefined;
@@ -50,6 +49,7 @@ export class ERDToolPanel {
                 enableScripts: true,
                 retainContextWhenHidden: true,
                 localResourceRoots: [
+                    vscode.Uri.joinPath(extensionUri, 'node_modules', '@dvdt-tools', 'erd-generator', 'dist', 'webview'),
                     vscode.Uri.joinPath(extensionUri, 'node_modules', '@dvdt-tools', 'erd-generator', 'ui')
                 ]
             }
@@ -73,20 +73,12 @@ export class ERDToolPanel {
         // Listen for when the panel is disposed
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
-        // Handle messages from the webview
+        // Handle messages from the webview (only for file operations and clipboard)
         this._panel.webview.onDidReceiveMessage(
-            async message => {
+            async (message: any) => {
                 switch (message.command) {
                     case 'requestCredentials':
                         this.setCredentials(this.environmentUrl, this.accessToken);
-                        break;
-
-                    case 'listSolutions':
-                        await this.handleListSolutions();
-                        break;
-
-                    case 'generateERD':
-                        await this.handleGenerateERD(message.solutionName, message.format, message.config);
                         break;
 
                     case 'saveFile':
@@ -115,62 +107,6 @@ export class ERDToolPanel {
         });
     }
 
-    private async handleListSolutions() {
-        try {
-            const client = new DataverseClient({
-                environmentUrl: this.environmentUrl,
-                accessToken: this.accessToken
-            });
-
-            const solutions = await client.listSolutions();
-
-            this._panel.webview.postMessage({
-                command: 'solutionsLoaded',
-                solutions: solutions
-            });
-        } catch (error: any) {
-            this._panel.webview.postMessage({
-                command: 'solutionsError',
-                error: error.message
-            });
-            vscode.window.showErrorMessage(`Failed to load solutions: ${error.message}`);
-        }
-    }
-
-    private async handleGenerateERD(solutionName: string, format: string, config?: any) {
-        try {
-            const client = new DataverseClient({
-                environmentUrl: this.environmentUrl,
-                accessToken: this.accessToken
-            });
-
-            const solution = await client.fetchSolution(solutionName);
-            
-            // Use config from webview or defaults
-            const erdConfig = {
-                format: format as any,
-                includeAttributes: config?.includeAttributes !== undefined ? config.includeAttributes : true,
-                includeRelationships: config?.includeRelationships !== undefined ? config.includeRelationships : true,
-                maxAttributesPerTable: config?.maxAttributesPerTable !== undefined ? config.maxAttributesPerTable : 10
-            };
-            
-            const generator = new ERDGenerator(erdConfig);
-
-            const diagram = generator.generate(solution);
-
-            this._panel.webview.postMessage({
-                command: 'erdGenerated',
-                diagram: diagram
-            });
-        } catch (error: any) {
-            this._panel.webview.postMessage({
-                command: 'erdError',
-                error: error.message
-            });
-            vscode.window.showErrorMessage(`Failed to generate ERD: ${error.message}`);
-        }
-    }
-
     private async handleSaveFile(content: string, fileName: string) {
         const uri = await vscode.window.showSaveDialog({
             defaultUri: vscode.Uri.file(fileName),
@@ -194,8 +130,8 @@ export class ERDToolPanel {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
-        // Get path to webview.html
-        const webviewPath = vscode.Uri.joinPath(
+        // Get path to webview.html template
+        const webviewHtmlPath = vscode.Uri.joinPath(
             this._extensionUri,
             'node_modules',
             '@dvdt-tools',
@@ -204,15 +140,23 @@ export class ERDToolPanel {
             'webview.html'
         );
 
-        // Read the HTML file
-        const fs = require('fs');
-        let html = fs.readFileSync(webviewPath.fsPath, 'utf8');
+        // Get path to bundled webview JavaScript
+        const webviewJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
+            this._extensionUri,
+            'node_modules',
+            '@dvdt-tools',
+            'erd-generator',
+            'dist',
+            'webview',
+            'webview.js'
+        ));
 
-        // Update CSP to work with VS Code
-        html = html.replace(
-            'default-src \'none\';',
-            `default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'unsafe-inline' ${webview.cspSource};`
-        );
+        // Read the HTML file
+        let html = fs.readFileSync(webviewHtmlPath.fsPath, 'utf8');
+
+        // Replace placeholders
+        html = html.replace('{{cspSource}}', webview.cspSource);
+        html = html.replace('{{webviewJsUri}}', webviewJsUri.toString());
 
         return html;
     }
