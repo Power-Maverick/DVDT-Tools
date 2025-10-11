@@ -5,8 +5,12 @@
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch"
+    "build": "npm run build:extension && npm run build:webview",
+    "build:extension": "tsc",
+    "build:webview": "webpack --config webpack.config.js",
+    "dev": "npm run dev:extension & npm run dev:webview",
+    "dev:extension": "tsc --watch",
+    "dev:webview": "webpack --config webpack.config.js --watch"
   },
   "keywords": [
     "dataverse",
@@ -23,7 +27,11 @@
     "axios": "^1.6.2"
   },
   "devDependencies": {
-    "@types/vscode": "1.85.0"
+    "@types/vscode": "1.85.0",
+    "ts-loader": "9.5.4",
+    "typescript": "5.9.3",
+    "webpack": "5.102.1",
+    "webpack-cli": "5.1.4"
   },
   "peerDependencies": {
     "vscode": "^1.85.0"
