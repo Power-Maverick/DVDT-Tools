@@ -9,7 +9,7 @@ This guide shows how to integrate the ERD Generator as a webview panel in Datave
 The ERD tool is designed as a **plug-and-play component** for DVDT:
 - **DVDT provides**: Environment URL and access token
 - **ERD tool handles**: Everything else (fetching solutions, generating diagrams, UI, etc.)
-- **Integration effort**: ~10 lines of code in DVDT
+- **Integration effort**: Just call one function - no command registration needed
 
 ## Quick Start
 
@@ -24,29 +24,44 @@ The ERD tool is designed as a **plug-and-play component** for DVDT:
 }
 ```
 
-### 2. Register the Command (One-Time Setup)
+### 2. Call the Function (That's It!)
 
-Add this to DVDT's `extension.ts` activation function:
+When you want to show the ERD panel in DVDT, simply call:
 
 ```typescript
-import { registerERDTool } from '@dvdt-tools/erd-generator';
+import { showERDPanel } from '@dvdt-tools/erd-generator';
 
-export function activate(context: vscode.ExtensionContext) {
-    // Your existing DVDT activation code...
-    
-    // Register ERD tool - minimal integration!
-    registerERDTool(context, {
-        getEnvironmentUrl: () => dvdtConfig.getCurrentEnvironment(),
-        getAccessToken: () => dvdtAuth.getAccessToken()
-    });
+// In your DVDT code where you want to open the ERD tool
+showERDPanel(context.extensionUri, environmentUrl, accessToken);
+```
+
+**Complete Example:**
+
+```typescript
+// In your DVDT menu handler or button click
+async function openERDGenerator() {
+    try {
+        const environmentUrl = dvdtConfig.getCurrentEnvironment();
+        const accessToken = await dvdtAuth.getAccessToken();
+
+        if (!environmentUrl || !accessToken) {
+            vscode.window.showErrorMessage('Please connect to Dataverse first');
+            return;
+        }
+
+        // Open ERD tool panel
+        showERDPanel(context.extensionUri, environmentUrl, accessToken);
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to open ERD Generator: ${error.message}`);
+    }
 }
 ```
 
-That's it! The ERD tool is now integrated.
+That's it! No command registration, no additional setup required.
 
 ### 3. Add Menu Item (Optional)
 
-Add a command to DVDT's `package.json`:
+You can add a command to trigger the ERD tool from DVDT's UI:
 
 ```json
 {
@@ -70,34 +85,17 @@ Add a command to DVDT's `package.json`:
 }
 ```
 
-## Manual Integration (If you prefer more control)
-
-If you want more control over the integration, you can use the `ERDToolPanel` class directly:
+Then register your command handler:
 
 ```typescript
-import { ERDToolPanel } from '@dvdt-tools/erd-generator';
-import * as vscode from 'vscode';
-
-// In your command handler
-vscode.commands.registerCommand('dvdt.generateERD', async () => {
-    try {
+context.subscriptions.push(
+    vscode.commands.registerCommand('dvdt.generateERD', async () => {
         const environmentUrl = dvdtConfig.getCurrentEnvironment();
         const accessToken = await dvdtAuth.getAccessToken();
-
-        if (!environmentUrl || !accessToken) {
-            vscode.window.showErrorMessage('Please connect to Dataverse first');
-            return;
-        }
-
-        // Open ERD tool panel
-        ERDToolPanel.createOrShow(
-            context.extensionUri,
-            environmentUrl,
-            accessToken
-        );
-    } catch (error) {
-        vscode.window.showErrorMessage(`Failed to open ERD Generator: ${error.message}`);
-    }
+        
+        showERDPanel(context.extensionUri, environmentUrl, accessToken);
+    })
+);
 });
 ```
 
