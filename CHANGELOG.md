@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial monorepo structure with npm workspaces
 - ERD Generator package (`@dvdt-tools/erd-generator`)
   - **VS Code WebView integration** - simple function call integration, no command registration needed
+  - **Webpack-bundled architecture** - TypeScript webview code compiled to JavaScript with consistent naming
+  - **Direct API access** - webview directly uses DataverseClient and ERDGenerator without postMessage overhead
   - **Self-contained WebView UI** - complete UI with modern dropdown controls
   - **Minimal integration design** - DVDT provides credentials, ERD tool handles everything else
   - **Modern UI** - dropdown solution selector, single-page experience
@@ -24,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic fetching of solutions, tables, attributes, and relationships
   - List available solutions from Dataverse
   - File saving and clipboard operations
+
+### Fixed
+- Content Security Policy (CSP) now includes `connect-src https:` to allow Dataverse API calls from webview
 - Comprehensive documentation
   - VS Code WebView integration guide (VSCODE_INTEGRATION.md)
   - Local testing guide (LOCAL_TESTING.md)
