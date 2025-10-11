@@ -89,6 +89,12 @@ export class ERDToolPanel {
             null,
             this._disposables
         );
+
+        // Send credentials to webview after it loads
+        // Small delay to ensure webview is ready
+        setTimeout(() => {
+            this.setCredentials(this.environmentUrl, this.accessToken);
+        }, 100);
     }
 
     private setCredentials(environmentUrl: string, accessToken: string) {
