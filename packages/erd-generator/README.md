@@ -4,15 +4,15 @@ Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Designed a
 
 ## Features
 
-- **🎨 VS Code WebView Panel**: Complete UI that integrates into DVDT
-- **Minimal Integration**: DVDT provides environment URL and token - ERD tool handles everything else
+- **🎨 VS Code WebView Panel**: Complete UI with modern dropdown controls and configuration options
+- **Minimal Integration**: Just call one function - no command registration needed
 - **Fetch metadata automatically**: Retrieve solution, table, attribute, and relationship metadata from Dataverse
 - Generate ERD from Dataverse solution metadata
 - Support for multiple diagram formats:
   - Mermaid
   - PlantUML
   - Graphviz DOT
-- Configurable output:
+- Configurable output (via UI):
   - Include/exclude attributes
   - Include/exclude relationships
   - Limit number of attributes per table
@@ -30,53 +30,64 @@ npm install @dvdt-tools/erd-generator
 
 ### VS Code WebView Panel Integration
 
-**Minimal integration - ~10 lines of code:**
+**Simple function call - no command registration needed:**
 
 ```typescript
-import { registerERDTool } from '@dvdt-tools/erd-generator';
+import { showERDPanel } from '@dvdt-tools/erd-generator';
 
-// In DVDT's activate function
-registerERDTool(context, {
-  getEnvironmentUrl: () => dvdtConfig.getCurrentEnvironment(),
-  getAccessToken: () => dvdtAuth.getAccessToken()
-});
+// Call this when you want to show the ERD panel
+showERDPanel(context.extensionUri, environmentUrl, accessToken);
+```
+
+**Complete example:**
+
+```typescript
+import { showERDPanel } from '@dvdt-tools/erd-generator';
+import * as vscode from 'vscode';
+
+// In your DVDT menu handler or button click
+async function openERDGenerator() {
+    try {
+        const environmentUrl = dvdtConfig.getCurrentEnvironment();
+        const accessToken = await dvdtAuth.getAccessToken();
+
+        if (!environmentUrl || !accessToken) {
+            vscode.window.showErrorMessage('Please connect to Dataverse first');
+            return;
+        }
+
+        // Open ERD tool panel
+        showERDPanel(context.extensionUri, environmentUrl, accessToken);
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to open ERD Generator: ${error.message}`);
+    }
+}
 ```
 
 That's it! The ERD tool will:
-- Open as a panel when commanded
-- List all solutions from the environment
+- Open as a panel when called
+- List all solutions in a dropdown control
 - Allow users to select and generate ERDs
 - Handle downloading and copying
-- Provide a complete UI experience
+- Provide a complete UI experience with configuration options
 
 See [../../VSCODE_INTEGRATION.md](../../VSCODE_INTEGRATION.md) for complete integration guide.
 
 ## API
 
-### registerERDTool()
+### showERDPanel()
 
-Registers the ERD tool command in DVDT.
+Opens the ERD Generator panel in VS Code.
 
 **Parameters:**
-- `context: vscode.ExtensionContext` - VS Code extension context
-- `credentialProvider: object` - Object with two functions:
-  - `getEnvironmentUrl(): string | Promise<string>` - Returns Dataverse environment URL
-  - `getAccessToken(): string | Promise<string>` - Returns access token
+- `extensionUri: vscode.Uri` - VS Code extension URI from context
+- `environmentUrl: string` - Dataverse environment URL
+- `accessToken: string` - Dataverse access token
 
 **Example:**
 ```typescript
-registerERDTool(context, {
-  getEnvironmentUrl: () => dvdtConfig.getCurrentEnvironment(),
-  getAccessToken: () => dvdtAuth.getAccessToken()
-});
+showERDPanel(context.extensionUri, environmentUrl, accessToken);
 ```
-
-### ERDToolPanel
-
-The WebView panel class that manages the ERD UI. Typically you don't need to use this directly - use `registerERDTool()` instead.
-
-**Method:**
-- `ERDToolPanel.createOrShow(extensionUri, environmentUrl, accessToken)` - Creates or shows the panel
 
 ### DataverseClient
 

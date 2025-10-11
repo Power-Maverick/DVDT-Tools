@@ -13,21 +13,20 @@ This is a monorepo containing various tools for working with Microsoft Dataverse
 Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Designed as a **VS Code WebView panel** for seamless integration with Dataverse DevTools (DVDT).
 
 **Key Features:**
-- **VS Code WebView Panel Integration**: Embeddable panel for DVDT with ~10 lines of integration code
-- **Self-Contained UI**: Complete webview HTML that runs in VS Code panels with VS Code theming
+- **VS Code WebView Panel Integration**: Call one function to show the panel - no command registration needed
+- **Self-Contained UI**: Complete webview HTML with modern dropdown controls and configuration options
 - **Minimal DVDT Integration**: DVDT only provides environment URL and token - ERD tool handles everything else
 - Fetch solution metadata automatically from Dataverse
 - Multiple output formats: Mermaid, PlantUML, Graphviz DOT
 - Download diagrams as source code or copy to clipboard
+- User-configurable options (include attributes, relationships, max attributes)
 
-**DVDT Integration (WebView Panel):**
+**DVDT Integration (Simple Function Call):**
 ```typescript
-import { registerERDTool } from '@dvdt-tools/erd-generator';
+import { showERDPanel } from '@dvdt-tools/erd-generator';
 
-registerERDTool(context, {
-  getEnvironmentUrl: () => dvdtConfig.getCurrentEnvironment(),
-  getAccessToken: () => dvdtAuth.getAccessToken()
-});
+// Just call this when you want to show the ERD panel
+showERDPanel(context.extensionUri, environmentUrl, accessToken);
 ```
 
 See [VSCODE_INTEGRATION.md](./VSCODE_INTEGRATION.md) for complete WebView integration guide.
