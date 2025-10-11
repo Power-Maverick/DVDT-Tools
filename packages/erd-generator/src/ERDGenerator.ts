@@ -42,6 +42,9 @@ export class ERDGenerator {
     lines.push('erDiagram');
     lines.push('');
 
+    // Create a set of table names in the solution for quick lookup
+    const tablesInSolution = new Set(solution.tables.map(t => t.logicalName));
+
     // Add tables
     for (const table of solution.tables) {
       lines.push(`    ${this.sanitizeTableName(table.logicalName)} {`);
@@ -67,12 +70,15 @@ export class ERDGenerator {
       lines.push('');
     }
 
-    // Add relationships
+    // Add relationships - only include relationships where both tables are in the solution
     if (this.config.includeRelationships) {
       for (const table of solution.tables) {
         for (const rel of table.relationships) {
-          const relationship = this.mapMermaidRelationship(rel);
-          lines.push(`    ${this.sanitizeTableName(table.logicalName)} ${relationship} ${this.sanitizeTableName(rel.relatedTable)} : "${rel.schemaName}"`);
+          // Only include relationship if the related table is also in this solution
+          if (tablesInSolution.has(rel.relatedTable)) {
+            const relationship = this.mapMermaidRelationship(rel);
+            lines.push(`    ${this.sanitizeTableName(table.logicalName)} ${relationship} ${this.sanitizeTableName(rel.relatedTable)} : "${rel.schemaName}"`);
+          }
         }
       }
     }
@@ -88,6 +94,9 @@ export class ERDGenerator {
     lines.push('@startuml');
     lines.push(`title ${solution.displayName} - Entity Relationship Diagram`);
     lines.push('');
+
+    // Create a set of table names in the solution for quick lookup
+    const tablesInSolution = new Set(solution.tables.map(t => t.logicalName));
 
     // Add tables
     for (const table of solution.tables) {
@@ -113,12 +122,15 @@ export class ERDGenerator {
       lines.push('');
     }
 
-    // Add relationships
+    // Add relationships - only include relationships where both tables are in the solution
     if (this.config.includeRelationships) {
       for (const table of solution.tables) {
         for (const rel of table.relationships) {
-          const relationship = this.mapPlantUMLRelationship(rel);
-          lines.push(`${this.sanitizeTableName(table.logicalName)} ${relationship} ${this.sanitizeTableName(rel.relatedTable)}`);
+          // Only include relationship if the related table is also in this solution
+          if (tablesInSolution.has(rel.relatedTable)) {
+            const relationship = this.mapPlantUMLRelationship(rel);
+            lines.push(`${this.sanitizeTableName(table.logicalName)} ${relationship} ${this.sanitizeTableName(rel.relatedTable)}`);
+          }
         }
       }
     }
@@ -137,6 +149,9 @@ export class ERDGenerator {
     lines.push('  rankdir=LR;');
     lines.push('  node [shape=record];');
     lines.push('');
+
+    // Create a set of table names in the solution for quick lookup
+    const tablesInSolution = new Set(solution.tables.map(t => t.logicalName));
 
     // Add tables
     for (const table of solution.tables) {
@@ -165,12 +180,15 @@ export class ERDGenerator {
 
     lines.push('');
 
-    // Add relationships
+    // Add relationships - only include relationships where both tables are in the solution
     if (this.config.includeRelationships) {
       for (const table of solution.tables) {
         for (const rel of table.relationships) {
-          const style = rel.type === 'ManyToMany' ? 'dir=both' : 'dir=forward';
-          lines.push(`  ${this.sanitizeTableName(table.logicalName)} -> ${this.sanitizeTableName(rel.relatedTable)} [label="${rel.schemaName}", ${style}];`);
+          // Only include relationship if the related table is also in this solution
+          if (tablesInSolution.has(rel.relatedTable)) {
+            const style = rel.type === 'ManyToMany' ? 'dir=both' : 'dir=forward';
+            lines.push(`  ${this.sanitizeTableName(table.logicalName)} -> ${this.sanitizeTableName(rel.relatedTable)} [label="${rel.schemaName}", ${style}];`);
+          }
         }
       }
     }

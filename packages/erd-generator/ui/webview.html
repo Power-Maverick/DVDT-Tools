@@ -3,8 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src https:; style-src 'unsafe-inline'; script-src {{cspSource}}; img-src https: data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src https:; style-src 'unsafe-inline'; script-src {{cspSource}} https://cdn.jsdelivr.net; img-src https: data:;">
     <title>Dataverse ERD Generator</title>
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        // Initialize Mermaid with VS Code theme
+        if (typeof mermaid !== 'undefined') {
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'dark',
+                themeVariables: {
+                    primaryColor: '#0e639c',
+                    primaryTextColor: '#fff',
+                    primaryBorderColor: '#007acc',
+                    lineColor: '#007acc',
+                    secondaryColor: '#3a3d41',
+                    tertiaryColor: '#1e1e1e'
+                }
+            });
+        }
+    </script>
     <style>
         * {
             margin: 0;
@@ -351,6 +370,7 @@
         <div id="diagramSection" class="card hidden">
             <h2>Generated ERD</h2>
             <div class="diagram-controls">
+                <button class="btn btn-secondary" id="toggleViewBtn">🎨 Show Visual</button>
                 <button class="btn btn-secondary" id="downloadSourceBtn">📥 Download Source</button>
                 <button class="btn btn-secondary" id="copyBtn">📋 Copy to Clipboard</button>
             </div>

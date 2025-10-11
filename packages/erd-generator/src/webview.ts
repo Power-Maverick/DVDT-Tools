@@ -19,6 +19,7 @@ interface State {
     selectedSolution: string | null;
     selectedFormat: 'mermaid' | 'plantuml' | 'graphviz';
     generatedDiagram: string | null;
+    viewMode: 'visual' | 'text'; // New: view mode toggle
     config: {
         includeAttributes: boolean;
         includeRelationships: boolean;
@@ -33,6 +34,7 @@ const state: State = {
     selectedSolution: null,
     selectedFormat: 'mermaid',
     generatedDiagram: null,
+    viewMode: 'visual', // Default to visual
     config: {
         includeAttributes: true,
         includeRelationships: true,
@@ -46,6 +48,7 @@ let elements: {
     newDiagramBtn: HTMLButtonElement;
     downloadSourceBtn: HTMLButtonElement;
     copyBtn: HTMLButtonElement;
+    toggleViewBtn: HTMLButtonElement; // New: toggle view button
     errorMessage: HTMLDivElement;
     solutionSelect: HTMLSelectElement;
     generateSection: HTMLDivElement;
@@ -69,12 +72,7 @@ function showError(message: string) {
     }
 }
 
-// Initialize: Request environment URL and token from VS Code extension
-function initialize() {
-    vscode.postMessage({
-        command: 'requestCredentials'
-    });
-}
+// Removed: initialize() function - no longer needed since credentials are passed directly
 
 // Handle messages from VS Code extension
 window.addEventListener('message', (event) => {
@@ -181,7 +179,68 @@ async function generateERD() {
 
 // Display diagram
 function displayDiagram(diagram: string, format: string) {
-    elements.diagramContainer.innerHTML = `<pre>${diagram}</pre>`;
+    if (state.viewMode === 'visual' && format === 'mermaid') {
+        // Render Mermaid diagram visually
+        renderMermaidDiagram(diagram);
+    } else {
+        // Show text view
+        elements.diagramContainer.innerHTML = `<pre style="background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); padding: 1rem; border-radius: 4px; overflow-x: auto;">${escapeHtml(diagram)}</pre>`;
+    }
+    
+    // Update toggle button text
+    updateToggleButtonText();
+}
+
+// Render Mermaid diagram using Mermaid library
+function renderMermaidDiagram(diagram: string) {
+    // Use Mermaid.js to render the diagram
+    try {
+        // Create a unique ID for the diagram
+        const diagramId = 'mermaid-' + Date.now();
+        elements.diagramContainer.innerHTML = `<div id="${diagramId}" style="text-align: center; background: var(--vscode-editor-background); padding: 1rem; border-radius: 4px; overflow-x: auto;">${diagram}</div>`;
+        
+        // Check if Mermaid is loaded
+        if (typeof (window as any).mermaid !== 'undefined') {
+            (window as any).mermaid.init(undefined, document.getElementById(diagramId));
+        } else {
+            // Fallback to text if Mermaid is not loaded
+            console.warn('Mermaid library not loaded, falling back to text view');
+            elements.diagramContainer.innerHTML = `<pre style="background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); padding: 1rem; border-radius: 4px; overflow-x: auto;">${escapeHtml(diagram)}</pre>`;
+        }
+    } catch (error) {
+        console.error('Error rendering Mermaid diagram:', error);
+        // Fallback to text view
+        elements.diagramContainer.innerHTML = `<pre style="background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); padding: 1rem; border-radius: 4px; overflow-x: auto;">${escapeHtml(diagram)}</pre>`;
+    }
+}
+
+// Escape HTML
+function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Toggle between visual and text view
+function toggleView() {
+    state.viewMode = state.viewMode === 'visual' ? 'text' : 'visual';
+    
+    if (state.generatedDiagram) {
+        displayDiagram(state.generatedDiagram, state.selectedFormat);
+    }
+}
+
+// Update toggle button text
+function updateToggleButtonText() {
+    if (elements.toggleViewBtn) {
+        if (state.selectedFormat !== 'mermaid') {
+            // Hide toggle button for non-Mermaid formats
+            elements.toggleViewBtn.classList.add('hidden');
+        } else {
+            elements.toggleViewBtn.classList.remove('hidden');
+            elements.toggleViewBtn.textContent = state.viewMode === 'visual' ? '📝 Show Text' : '🎨 Show Visual';
+        }
+    }
 }
 
 // Download source
@@ -242,6 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         newDiagramBtn: document.getElementById('newDiagramBtn') as HTMLButtonElement,
         downloadSourceBtn: document.getElementById('downloadSourceBtn') as HTMLButtonElement,
         copyBtn: document.getElementById('copyBtn') as HTMLButtonElement,
+        toggleViewBtn: document.getElementById('toggleViewBtn') as HTMLButtonElement, // New
         errorMessage: document.getElementById('errorMessage') as HTMLDivElement,
         solutionSelect: document.getElementById('solutionSelect') as HTMLSelectElement,
         generateSection: document.getElementById('generateSection') as HTMLDivElement,
@@ -294,6 +354,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // New diagram button
     elements.newDiagramBtn.addEventListener('click', generateNewDiagram);
 
-    // Initialize
-    initialize();
+    // Toggle view button (NEW)
+    elements.toggleViewBtn.addEventListener('click', toggleView);
+
+    // Note: Credentials are now passed directly from extension via postMessage
+    // No need to call initialize() anymore
 });

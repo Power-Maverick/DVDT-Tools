@@ -76,10 +76,6 @@ export class ERDToolPanel {
         this._panel.webview.onDidReceiveMessage(
             async (message: any) => {
                 switch (message.command) {
-                    case 'requestCredentials':
-                        this.setCredentials(this.environmentUrl, this.accessToken);
-                        break;
-
                     case 'saveFile':
                         await this.handleSaveFile(message.content, message.fileName);
                         break;
