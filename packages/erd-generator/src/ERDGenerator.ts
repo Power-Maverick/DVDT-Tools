@@ -48,7 +48,7 @@ export class ERDGenerator {
     for (const table of solution.tables) {
       const tableName = this.sanitizeTableName(table.logicalName);
       
-      if (this.config.includeAttributes) {
+      if (this.config.includeAttributes && table.attributes.length > 0) {
         lines.push(`    ${tableName} {`);
         const attributes = this.config.maxAttributesPerTable > 0
           ? table.attributes.slice(0, this.config.maxAttributesPerTable)
@@ -56,18 +56,23 @@ export class ERDGenerator {
 
         for (const attr of attributes) {
           const type = this.mapToMermaidType(attr.type);
+          const attrName = this.sanitizeTableName(attr.logicalName);
           const constraints = [];
           if (attr.isPrimaryId) constraints.push('PK');
-          if (attr.isRequired && !attr.isPrimaryId) constraints.push('NOT NULL');
-          const constraintStr = constraints.length > 0 ? ` "${constraints.join(' ')}"` : '';
-          lines.push(`        ${type} ${this.sanitizeTableName(attr.logicalName)}${constraintStr}`);
+          if (attr.isRequired && !attr.isPrimaryId) constraints.push('NOT_NULL');
+          const constraintStr = constraints.length > 0 ? ` ${constraints.join('_')}` : '';
+          lines.push(`        ${type} ${attrName}${constraintStr}`);
         }
 
         if (this.config.maxAttributesPerTable > 0 && table.attributes.length > this.config.maxAttributesPerTable) {
-          lines.push(`        string more_attributes "...${table.attributes.length - this.config.maxAttributesPerTable} more"`);
+          const remaining = table.attributes.length - this.config.maxAttributesPerTable;
+          lines.push(`        string more_attributes "plus ${remaining} more"`);
         }
         
-        lines.push('    }');
+        lines.push(`    }`);
+      } else if (!this.config.includeAttributes) {
+        // Just declare the entity without attributes
+        lines.push(`    ${tableName} {}`);
       }
     }
 
