@@ -36,9 +36,24 @@ The project uses a single unified build command that compiles both the extension
 npm run build
 ```
 
-This runs:
-1. TypeScript compiler (`tsc`) - Compiles extension code (`src/vscode-integration.ts`, `DataverseClient.ts`, etc.)
-2. Webpack - Bundles webview code (`src/webview.ts`) into `dist/webview/webview.js`
+This runs two build processes sequentially:
+1. **TypeScript compiler (`tsc`)** - Compiles extension code for Node.js/VS Code environment
+   - Compiles: `src/vscode-integration.ts`, `DataverseClient.ts`, `ERDGenerator.ts`, etc.
+   - Output: `dist/src/*.js` files
+   - Target: Node.js runtime (used by VS Code extension host)
+
+2. **Webpack** - Bundles webview code for browser environment
+   - Bundles: `src/webview.ts` with all dependencies (DataverseClient, ERDGenerator, Mermaid)
+   - Output: `dist/webview/webview.js` (single bundled file)
+   - Target: Browser runtime (runs in VS Code WebView panel)
+
+**Why two separate build processes?**
+
+We need both because the extension and webview run in different environments:
+- **Extension code** runs in Node.js (VS Code extension host) and needs access to VS Code APIs
+- **Webview code** runs in a browser context (Chrome-based webview) and needs all dependencies bundled together
+
+The builds cannot be merged into a single tool because they target fundamentally different JavaScript runtimes.
 
 ### Standalone Testing (Without DVDT Integration)
 
