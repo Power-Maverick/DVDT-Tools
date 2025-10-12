@@ -31,9 +31,10 @@ showERDPanel(context.extensionUri, environmentUrl, accessToken);
 
 See [VSCODE_INTEGRATION.md](./VSCODE_INTEGRATION.md) for complete WebView integration guide.
 
-**Local Testing:**
+**Testing:**
 
-Want to test the ERD tool with a local copy of Dataverse DevTools? See [LOCAL_TESTING.md](./LOCAL_TESTING.md) for step-by-step instructions on setting up local development and testing.
+- **Standalone Testing**: Open `packages/erd-generator/ui/test.html` in your browser to test without DVDT integration. Just provide your environment URL and access token.
+- **Local DVDT Integration**: See [LOCAL_TESTING.md](./LOCAL_TESTING.md) for step-by-step instructions on integrating with a local copy of Dataverse DevTools.
 
 ## Getting Started
 

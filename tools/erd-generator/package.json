@@ -10,7 +10,8 @@
     "build:webview": "webpack --config webpack.config.js",
     "dev": "npm run dev:extension & npm run dev:webview",
     "dev:extension": "tsc --watch",
-    "dev:webview": "webpack --config webpack.config.js --watch"
+    "dev:webview": "webpack --config webpack.config.js --watch",
+    "test:standalone": "echo 'Opening standalone test page...' && python3 -m http.server 8080 --directory ui || python -m SimpleHTTPServer 8080"
   },
   "keywords": [
     "dataverse",

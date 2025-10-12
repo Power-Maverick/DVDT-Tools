@@ -26,6 +26,45 @@ Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Designed a
 npm install @dvdt-tools/erd-generator
 ```
 
+## Development & Testing
+
+### Building the Project
+
+The project uses a single unified build command that compiles both the extension code and webview bundle:
+
+```bash
+npm run build
+```
+
+This runs:
+1. TypeScript compiler (`tsc`) - Compiles extension code (`src/vscode-integration.ts`, `DataverseClient.ts`, etc.)
+2. Webpack - Bundles webview code (`src/webview.ts`) into `dist/webview/webview.js`
+
+### Standalone Testing (Without DVDT Integration)
+
+You can test the ERD Generator without integrating it into DVDT:
+
+1. **Build the project:**
+   ```bash
+   npm run build
+   ```
+
+2. **Open the test page:**
+   Open `packages/erd-generator/ui/test.html` in your browser
+
+3. **Enter credentials:**
+   - Environment URL: Your Dataverse environment (e.g., `https://contoso.crm.dynamics.com`)
+   - Access Token: Your Dataverse access token
+
+4. **Click "Load ERD Generator"** to test the full functionality
+
+The standalone test page simulates VS Code's WebView environment and allows you to:
+- List and select solutions
+- Generate ERDs in all formats
+- Test visual rendering (Mermaid)
+- Download diagrams
+- Copy to clipboard
+
 ## Integration with Dataverse DevTools
 
 ### VS Code WebView Panel Integration
