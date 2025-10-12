@@ -1,4 +1,4 @@
-import { DataverseRelationship, DataverseSolution, ERDConfig } from './types';
+import { DataverseRelationship, DataverseSolution, ERDConfig } from '../models/interfaces';
 
 /**
  * ERD Generator for Dataverse solutions

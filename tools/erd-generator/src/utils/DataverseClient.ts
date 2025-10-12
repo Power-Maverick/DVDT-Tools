@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { DataverseAttribute, DataverseRelationship, DataverseSolution, DataverseTable } from './types';
+import { DataverseAttribute, DataverseRelationship, DataverseSolution, DataverseTable } from '../models/interfaces';
 
 /**
  * Configuration for connecting to Dataverse

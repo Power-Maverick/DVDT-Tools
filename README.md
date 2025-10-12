@@ -6,9 +6,9 @@ Tools that can be integrated with Dataverse DevTools VS Code extension.
 
 This is a monorepo containing various tools for working with Microsoft Dataverse and Power Platform.
 
-## Packages
+## Tools
 
-### [@dvdt-tools/erd-generator](./packages/erd-generator)
+### [@dvdt-tools/erd-generator](./tools/erd-generator)
 
 Generate Entity Relationship Diagrams (ERD) from Dataverse solutions. Designed as a **VS Code WebView panel** for seamless integration with Dataverse DevTools (DVDT).
 
@@ -50,7 +50,7 @@ npm install
 
 ### Building
 
-Build all packages:
+Build all tools:
 
 ```bash
 npm run build
@@ -61,7 +61,7 @@ npm run build
 Watch mode for development:
 
 ```bash
-cd packages/erd-generator
+cd tools/erd-generator
 npm run dev
 ```
 
@@ -69,7 +69,7 @@ npm run dev
 
 ```
 DVDT-Tools/
-├── packages/
+├── tools/
 │   └── erd-generator/       # ERD generation tool
 │       ├── src/
 │       │   ├── ERDGenerator.ts

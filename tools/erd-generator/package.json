@@ -1,6 +1,6 @@
 {
   "name": "@dvdt-tools/erd-generator",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Generate Entity Relationship Diagrams (ERD) for Dataverse solutions - VS Code WebView integration for DVDT",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
@@ -17,10 +17,9 @@
     "erd",
     "entity-relationship-diagram",
     "power-platform",
-    "vscode-extension",
     "dvdt"
   ],
-  "author": "Power-Maverick",
+  "author": "Danish Naglekar",
   "license": "GPL-2.0",
   "devDependencies": {
     "@types/node": "24.7.2",

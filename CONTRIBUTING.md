@@ -24,7 +24,7 @@ Thank you for your interest in contributing to DVDT-Tools! This document provide
    npm install
    ```
 
-4. Build all packages:
+4. Build all tools:
    ```bash
    npm run build
    ```
@@ -33,11 +33,11 @@ Thank you for your interest in contributing to DVDT-Tools! This document provide
 
 ### Project Structure
 
-This is a monorepo managed with npm workspaces. Each tool lives in its own package under `packages/`:
+This is a monorepo managed with npm workspaces. Each tool lives in its own package under `tools/`:
 
 ```
 DVDT-Tools/
-├── packages/
+├── tools/
 │   ├── erd-generator/    # ERD generation tool
 │   └── [future-tool]/     # Future tools will go here
 ├── package.json           # Root package with workspaces
@@ -79,9 +79,9 @@ We follow conventional commit messages:
 
 To add a new tool to the monorepo:
 
-1. Create a new directory under `packages/`:
+1. Create a new directory under `tools/`:
    ```bash
-   mkdir -p packages/your-tool/src
+   mkdir -p tools/your-tool/src
    ```
 
 2. Create `package.json` in the new package:

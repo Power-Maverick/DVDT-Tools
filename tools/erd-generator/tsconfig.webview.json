@@ -11,9 +11,9 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src/webview.ts",
-    "src/DataverseClient.ts",
-    "src/ERDGenerator.ts",
-    "src/types.ts"
+    "src/dvdtIntegration/webview.ts",
+    "src/utils/DataverseClient.ts",
+    "src/components/ERDGenerator.ts",
+    "src/models/types.ts"
   ]
 }

@@ -4,7 +4,7 @@
   "description": "Tools that can be integrated with Dataverse DevTools",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "tools/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces",

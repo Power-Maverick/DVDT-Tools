@@ -1,11 +1,14 @@
 /// <reference lib="dom" />
+
+import { ERDGenerator } from "../components/ERDGenerator";
+import { DataverseClient } from "../utils/DataverseClient";
+
 /**
  * Webview script for ERD Generator
  * This file runs in the webview context and has direct access to all helper classes
  */
 
-import { DataverseClient } from './DataverseClient';
-import { ERDGenerator } from './ERDGenerator';
+
 
 // VS Code API (provided by VS Code webview runtime)
 declare function acquireVsCodeApi(): any;

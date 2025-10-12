@@ -34,7 +34,7 @@ npm run build
 
 ```bash
 # Navigate to the ERD generator package
-cd packages/erd-generator
+cd tools/erd-generator
 
 # Create a global symlink
 npm link
@@ -167,7 +167,7 @@ When you make changes to the ERD generator code:
 1. **Rebuild the ERD generator:**
 
 ```bash
-# In DVDT-Tools/packages/erd-generator
+# In DVDT-Tools/tools/erd-generator
 npm run build
 ```
 
@@ -237,7 +237,7 @@ console.log('Solutions fetched:', solutions);
 ### Issue: Changes not reflected
 
 **Solution:**
-- Rebuild the ERD generator: `npm run build` in `DVDT-Tools/packages/erd-generator`
+- Rebuild the ERD generator: `npm run build` in `DVDT-Tools/tools/erd-generator`
 - Reload the Extension Development Host window
 - Close and reopen the ERD panel
 
@@ -322,7 +322,7 @@ npm install  # Reinstall normal dependencies
 2. **Unlink global package:**
 
 ```bash
-# In DVDT-Tools/packages/erd-generator
+# In DVDT-Tools/tools/erd-generator
 npm unlink
 ```
 
@@ -335,7 +335,7 @@ When ready to use the ERD tool in production:
 1. **Publish the ERD generator to npm:**
 
 ```bash
-# In DVDT-Tools/packages/erd-generator
+# In DVDT-Tools/tools/erd-generator
 npm publish
 ```
 
@@ -407,4 +407,4 @@ export function deactivate() {
 For more information, see:
 - [VS Code Integration Guide](./VSCODE_INTEGRATION.md)
 - [Contributing Guidelines](./CONTRIBUTING.md)
-- [Package README](./packages/erd-generator/README.md)
+- [Package README](./tools/erd-generator/README.md)
