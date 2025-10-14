@@ -1,0 +1,34 @@
+{
+  "name": "create-dvdt-tool",
+  "version": "1.0.0",
+  "description": "Scaffolding tool for creating new DVDT tools",
+  "main": "dist/index.js",
+  "bin": {
+    "create-dvdt-tool": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "echo \"No tests yet\""
+  },
+  "keywords": [
+    "dataverse",
+    "devtools",
+    "power-platform",
+    "scaffolding",
+    "cli"
+  ],
+  "author": "Power-Maverick",
+  "license": "GPL-2.0",
+  "dependencies": {
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/prompts": "^2.4.9",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
