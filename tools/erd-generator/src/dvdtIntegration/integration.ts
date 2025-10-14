@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as vscode from 'vscode';
+import { pathUi, pathWebview } from '../utils/Constants';
 
 /**
  * ERD Tool WebView Panel for Dataverse DevTools Integration
@@ -48,8 +49,8 @@ export class ERDToolPanel {
                 enableScripts: true,
                 retainContextWhenHidden: true,
                 localResourceRoots: [
-                    vscode.Uri.joinPath(extensionUri, 'node_modules', '@dvdt-tools', 'erd-generator', 'dist', 'webview'),
-                    vscode.Uri.joinPath(extensionUri, 'node_modules', '@dvdt-tools', 'erd-generator', 'ui')
+                    vscode.Uri.joinPath(extensionUri, ...pathWebview),
+                    vscode.Uri.joinPath(extensionUri, ...pathUi)
                 ]
             }
         );
@@ -134,21 +135,14 @@ export class ERDToolPanel {
         // Get path to webview.html template
         const webviewHtmlPath = vscode.Uri.joinPath(
             this._extensionUri,
-            'node_modules',
-            '@dvdt-tools',
-            'erd-generator',
-            'ui',
+            ...pathUi,
             'webview.html'
         );
 
         // Get path to bundled webview JavaScript
         const webviewJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            'node_modules',
-            '@dvdt-tools',
-            'erd-generator',
-            'dist',
-            'webview',
+            ...pathWebview,
             'webview.js'
         ));
 
