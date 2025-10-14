@@ -9,15 +9,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["es6", "dom"],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"],
-      "@components/*": ["./src/components/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@models/*": ["./src/models/*"],
-      "@dvdtIntegration/*": ["./src/dvdtIntegration/*"]
-    }
+    "lib": ["es6", "dom"]
   },
   "include": [
     "src/**/*"
