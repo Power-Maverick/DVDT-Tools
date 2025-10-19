@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { pathUi, pathWebview } from '../utils/Constants';
 
@@ -132,27 +131,54 @@ export class ERDToolPanel {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
-        // Get path to webview.html template
-        const webviewHtmlPath = vscode.Uri.joinPath(
-            this._extensionUri,
-            ...pathUi,
-            'webview.html'
-        );
-
-        // Get path to bundled webview JavaScript
-        const webviewJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
+        // Get URIs for the bundled React files
+        const indexJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
             ...pathWebview,
-            'webview.js'
+            'index.js'
+        ));
+        
+        const indexCssUri = webview.asWebviewUri(vscode.Uri.joinPath(
+            this._extensionUri,
+            ...pathWebview,
+            'index.css'
         ));
 
-        // Read the HTML file
-        let html = fs.readFileSync(webviewHtmlPath.fsPath, 'utf8');
+        // Load Mermaid from CDN for visualization
+        const mermaidScript = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
 
-        
-        // Replace placeholders
-        html = html.replace('{{cspSource}}', webview.cspSource);
-        html = html.replace('{{webviewJsUri}}', webviewJsUri.toString());
+        // Create HTML content
+        const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src https:; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} https://cdn.jsdelivr.net 'unsafe-eval'; img-src https: data:;">
+    <title>Dataverse ERD Generator</title>
+    <link rel="stylesheet" href="${indexCssUri}">
+    <script src="${mermaidScript}"></script>
+    <script>
+        if (typeof mermaid !== 'undefined') {
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'dark',
+                themeVariables: {
+                    primaryColor: '#0e639c',
+                    primaryTextColor: '#fff',
+                    primaryBorderColor: '#007acc',
+                    lineColor: '#007acc',
+                    secondaryColor: '#3a3d41',
+                    tertiaryColor: '#1e1e1e'
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+    <script src="${indexJsUri}"></script>
+</body>
+</html>`;
 
         return html;
     }
