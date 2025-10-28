@@ -1,21 +1,11 @@
 import { useEffect, useState } from "react";
-import { DataverseClient } from "../src/utils/DataverseClient";
-import { ERDGenerator } from "../src/components/ERDGenerator";
-import { DataverseSolution } from "../src/models/interfaces";
+import { ERDGenerator } from "./components/ERDGenerator";
+import { DataverseSolution } from "./models/interfaces";
+import { DataverseClient } from "./utils/DataverseClient";
 
 // Declare the APIs available on window
 declare global {
     interface Window {
-        // PPTB (Power Platform Toolbox) API
-        toolboxAPI?: {
-            getToolContext: () => Promise<{ connectionUrl: string; accessToken: string }>;
-            showNotification: (options: { title: string; body: string; type: string }) => Promise<void>;
-            onToolboxEvent: (callback: (event: string, payload: unknown) => void) => void;
-            getConnections: () => Promise<Array<{ id: string; name: string; url: string }>>;
-            getActiveConnection: () => Promise<{ id: string; name: string; url: string } | null>;
-        };
-        TOOLBOX_CONTEXT?: { toolId: string | null; connectionUrl: string | null; accessToken: string | null };
-        
         // DVDT (VS Code) API
         acquireVsCodeApi?: () => {
             postMessage: (message: any) => void;
@@ -36,7 +26,6 @@ interface Solution {
 }
 
 function App() {
-    const [isVSCode, setIsVSCode] = useState<boolean>(false);
     const [isPPTB, setIsPPTB] = useState<boolean>(false);
     const [connectionUrl, setConnectionUrl] = useState<string>("");
     const [accessToken, setAccessToken] = useState<string>("");
@@ -46,7 +35,7 @@ function App() {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string>("");
     const [generatedDiagram, setGeneratedDiagram] = useState<string>("");
-    const [viewMode, setViewMode] = useState<'visual' | 'text'>('visual');
+    const [viewMode, setViewMode] = useState<'visual' | 'text'>('text');
     
     // Configuration options
     const [includeAttributes, setIncludeAttributes] = useState<boolean>(true);
@@ -58,7 +47,7 @@ function App() {
         const initializeEnvironment = async () => {
             // Check if we're in VS Code (DVDT)
             if (typeof window.acquireVsCodeApi !== 'undefined') {
-                setIsVSCode(true);
+                setIsPPTB(false);
                 setLoading(true);
                 
                 // Listen for credentials from DVDT
@@ -80,33 +69,16 @@ function App() {
             else if (window.toolboxAPI) {
                 setIsPPTB(true);
                 
-                // Listen for TOOLBOX_CONTEXT from parent window
-                const handleMessage = (event: MessageEvent) => {
-                    if (event.data && event.data.type === 'TOOLBOX_CONTEXT') {
-                        window.TOOLBOX_CONTEXT = event.data.data;
-                        const ctx = event.data.data;
-                        if (ctx.connectionUrl && ctx.accessToken) {
-                            setConnectionUrl(ctx.connectionUrl);
-                            setAccessToken(ctx.accessToken);
-                        }
-                    }
-                };
-                window.addEventListener('message', handleMessage);
-                
+                // Fetch connection details                
                 try {
                     // Try to get context from API
-                    const context = await window.toolboxAPI.getToolContext();
-                    setConnectionUrl(context.connectionUrl);
-                    setAccessToken(context.accessToken);
+                    const activeConnection = await window.toolboxAPI.connections.getActiveConnection();
+                    setConnectionUrl(activeConnection?.url || "");
                 } catch (error) {
                     console.error('Failed to get tool context:', error);
                 }
                 
                 setLoading(false);
-                
-                return () => {
-                    window.removeEventListener('message', handleMessage);
-                };
             } else {
                 // Standalone mode - show error
                 setError('Not running in supported environment (DVDT or PPTB)');
@@ -119,17 +91,17 @@ function App() {
 
     // Load solutions when credentials are available
     useEffect(() => {
-        if (connectionUrl && accessToken) {
+        if (connectionUrl) {
             loadSolutions();
         }
-    }, [connectionUrl, accessToken]);
+    }, [connectionUrl]);
 
     const loadSolutions = async () => {
         try {
             const client = new DataverseClient({
                 environmentUrl: connectionUrl,
                 accessToken: accessToken
-            });
+            }, isPPTB);
             
             const solutionList = await client.listSolutions();
             setSolutions(solutionList);
@@ -141,13 +113,6 @@ function App() {
     const showError = (message: string) => {
         setError(message);
         setTimeout(() => setError(""), 5000);
-    };
-
-    const showNotification = async (title: string, body: string, type: 'success' | 'error' | 'info') => {
-        if (isPPTB && window.toolboxAPI) {
-            await window.toolboxAPI.showNotification({ title, body, type });
-        }
-        // For DVDT, notifications are handled differently (through VS Code API on host side)
     };
 
     const handleGenerateERD = async () => {
@@ -162,7 +127,7 @@ function App() {
             const client = new DataverseClient({
                 environmentUrl: connectionUrl,
                 accessToken: accessToken
-            });
+            }, isPPTB);
 
             const solution: DataverseSolution = await client.fetchSolution(selectedSolution);
             
@@ -176,7 +141,13 @@ function App() {
             const diagram = generator.generate(solution);
             setGeneratedDiagram(diagram);
             
-            await showNotification('Success', 'ERD generated successfully', 'success');
+            if(isPPTB) {
+                await window.toolboxAPI.utils.showNotification({
+                    title: "Success",
+                    body: "ERD generated successfully",
+                    type: "success",
+                });
+            }
         } catch (error: any) {
             showError(`Failed to generate ERD: ${error.message}`);
         } finally {
@@ -184,7 +155,7 @@ function App() {
         }
     };
 
-    const handleDownload = () => {
+    const handleDownload = async () => {
         if (!generatedDiagram) return;
 
         const extensions: Record<string, string> = {
@@ -193,25 +164,21 @@ function App() {
             'graphviz': 'dot'
         };
 
-        if (isVSCode) {
-            // Send message to VS Code extension to handle file save
-            const vscode = window.acquireVsCodeApi!();
-            vscode.postMessage({
-                command: 'saveFile',
-                content: generatedDiagram,
-                fileName: `${selectedSolution}-erd.${extensions[selectedFormat]}`
-            });
-        } else {
-            // In PPTB, trigger browser download
-            const blob = new Blob([generatedDiagram], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${selectedSolution}-erd.${extensions[selectedFormat]}`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+        const fileName = `${selectedSolution}-erd.${extensions[selectedFormat]}`;
+        
+        try {
+            if(isPPTB) {
+                const savedPath = await window.toolboxAPI.utils.saveFile(fileName, generatedDiagram);
+                if (savedPath) {
+                    await window.toolboxAPI.utils.showNotification({
+                        title: "Success",
+                        body: "File saved successfully",
+                        type: "success",
+                    });
+                }
+            }
+        } catch (error: any) {
+            showError(`Failed to save file: ${error.message}`);
         }
     };
 
@@ -219,40 +186,64 @@ function App() {
         if (!generatedDiagram) return;
 
         try {
-            if (isVSCode) {
-                // Send message to VS Code extension
-                const vscode = window.acquireVsCodeApi!();
-                vscode.postMessage({
-                    command: 'copyToClipboard',
-                    content: generatedDiagram
+            if(isPPTB) {
+                await window.toolboxAPI.utils.copyToClipboard(generatedDiagram);
+                await window.toolboxAPI.utils.showNotification({
+                    title: "Success",
+                    body: "Copied to clipboard",
+                    type: "success",
                 });
-            } else {
-                // In PPTB, use browser clipboard API
-                await navigator.clipboard.writeText(generatedDiagram);
-                await showNotification('Success', 'Copied to clipboard', 'success');
             }
         } catch (error: any) {
             showError(`Failed to copy: ${error.message}`);
         }
     };
 
+    // Ensure mermaid is available and initialized (lazy load)
+    const ensureMermaid = async (): Promise<void> => {
+        if (window.mermaid) {
+            return;
+        }
+        const mod = await import('mermaid');
+        const mermaid = mod.default ?? (mod as any);
+        // Initialize once
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#0e639c',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#0a4f7c',
+                lineColor: '#0e639c',
+                secondaryColor: '#f3f4f6',
+                tertiaryColor: '#e5e7eb'
+            }
+        });
+        (window as any).mermaid = mermaid;
+    };
+
     const renderDiagram = () => {
         if (!generatedDiagram) return null;
 
         if (viewMode === 'visual' && selectedFormat === 'mermaid') {
-            // Render Mermaid diagram
+            // Render Mermaid diagram: use 'mermaid' class and set text content for init()
             return (
-                <div 
-                    className="mermaid-container"
-                    dangerouslySetInnerHTML={{ __html: generatedDiagram }}
+                <div
+                    className="mermaid"
                     ref={(el) => {
-                        if (el && window.mermaid) {
+                        (async () => {
+                            if (!el) return;
                             try {
-                                window.mermaid.init(undefined, el);
+                                // Set the diagram source as text content for Mermaid to parse
+                                el.textContent = generatedDiagram;
+                                await ensureMermaid();
+                                if (window.mermaid) {
+                                    window.mermaid.init(undefined, el);
+                                }
                             } catch (error) {
                                 console.error('Mermaid rendering error:', error);
                             }
-                        }
+                        })();
                     }}
                 />
             );

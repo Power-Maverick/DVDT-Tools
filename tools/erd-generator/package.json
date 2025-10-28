@@ -1,48 +1,47 @@
 {
-  "name": "dvdt-erd-generator",
-  "version": "0.0.6",
-  "description": "Generate Entity Relationship Diagrams (ERD) for Dataverse solutions - React-based tool with DVDT and PPTB integration",
-  "main": "dist/src/index.js",
-  "types": "dist/src/index.d.ts",
+  "name": "@power-maverick/tool-erd-generator",
+  "displayName": "ERD Generator",
+  "version": "0.1.15",
+  "description": "Generate Entity Relationship Diagrams (ERD) for Dataverse solutions - React-based tool for PowerPlatform ToolBox",
+  "type": "module",
   "scripts": {
-    "build": "npm run build:extension && npm run build:webview",
-    "build:extension": "tsc",
-    "build:webview": "vite build",
-    "dev": "npm run dev:extension & npm run dev:webview",
-    "dev:extension": "tsc --watch",
-    "dev:webview": "vite",
+    "build": "vite build",
+    "dev": "vite",
     "preview": "vite preview"
+  },
+  "files": [
+    "dist"
+  ],
+  "csp": {
+    "connect-src": [
+      "https://*.dynamics.com"
+    ],
+    "style-src": [
+      "'unsafe-inline'"
+    ]
   },
   "keywords": [
     "dataverse",
     "erd",
     "entity-relationship-diagram",
     "power-platform",
-    "dvdt",
-    "pptb"
+    "pptb",
+    "toolbox"
   ],
   "author": "Power Maverick",
   "license": "GPL-2.0",
   "dependencies": {
+    "mermaid": "^10.9.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "axios": "^1.7.9"
   },
   "devDependencies": {
-    "@types/node": "24.7.2",
+    "@pptb/types": "^1.0.7",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
-    "@types/vscode": "1.85.0",
     "@vitejs/plugin-react": "^4.3.4",
-    "axios": "1.12.2",
-    "typescript": "5.9.3",
+    "typescript": "^5.9.3",
     "vite": "^6.0.7"
-  },
-  "peerDependencies": {
-    "vscode": "^1.85.0"
-  },
-  "peerDependenciesMeta": {
-    "vscode": {
-      "optional": true
-    }
   }
 }

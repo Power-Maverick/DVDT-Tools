@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { DataverseAttribute, DataverseRelationship, DataverseSolution, DataverseTable } from '../models/interfaces';
+import { Helper } from './Helper';
 
 /**
  * Configuration for connecting to Dataverse
@@ -8,7 +9,7 @@ export interface DataverseConfig {
   /** Dataverse environment URL (e.g., https://org.crm.dynamics.com) */
   environmentUrl: string;
   /** Access token for authentication */
-  accessToken: string;
+  accessToken?: string;
   /** API version to use (default: 9.2) */
   apiVersion?: string;
 }
@@ -20,10 +21,12 @@ export class DataverseClient {
   private axiosInstance: AxiosInstance;
   private environmentUrl: string;
   private apiVersion: string;
+  private isPPTB: boolean;
 
-  constructor(config: DataverseConfig) {
+  constructor(config: DataverseConfig, isPPTB: boolean) {
     this.environmentUrl = config.environmentUrl.replace(/\/$/, '');
     this.apiVersion = config.apiVersion || '9.2';
+    this.isPPTB = isPPTB;
 
     this.axiosInstance = axios.create({
       baseURL: `${this.environmentUrl}/api/data/v${this.apiVersion}`,
@@ -44,28 +47,31 @@ export class DataverseClient {
    */
   async fetchSolution(solutionUniqueName: string): Promise<DataverseSolution> {
     try {
+      const helper = new Helper(this.axiosInstance);
+
       // Fetch solution details
-      const solutionResponse = await this.axiosInstance.get(
-        `/solutions?$filter=uniquename eq '${solutionUniqueName}'&$select=friendlyname,uniquename,_publisherid_value,version&$expand=publisherid($select=customizationprefix)`
-      );
-      if (!solutionResponse.data.value || solutionResponse.data.value.length === 0) {
+      const responseSolution = await helper.getOData(`solutions?$filter=uniquename eq '${solutionUniqueName}'&$select=solutionid,friendlyname,uniquename,_publisherid_value,version&$expand=publisherid($select=customizationprefix)`, this.isPPTB)
+      console.log("Solution Metadata",responseSolution);
+      
+      if (!responseSolution || responseSolution.length === 0) {
         throw new Error(`Solution '${solutionUniqueName}' not found`);
       }
-      const solutionData = solutionResponse.data.value[0];   
-      
+      const solutionData = responseSolution[0];
+      console.log("Solution Data",solutionData);
+
       // Publisher Prefix
       const publisherPrefix = solutionData.publisherid?.customizationprefix ?? 'unknown';
 
       // Fetch solution components (tables)
-      const componentsResponse = await this.axiosInstance.get(
-        `/solutioncomponents?$filter=_solutionid_value eq ${solutionData.solutionid} and componenttype eq 1&$select=objectid`
-      );
-      const tableIds = componentsResponse.data.value.map((c: any) => c.objectid);
-      console.log('tableIds', tableIds);
+      const responseComponent = await helper.getOData(`solutioncomponents?$filter=_solutionid_value eq ${solutionData.solutionid} and componenttype eq 1&$select=objectid`, this.isPPTB);
+      console.log("Component List",responseComponent);
+      
+      const tableIds = responseComponent.map((c: any) => c.objectid);
+      console.log("Table IDs", tableIds);
 
       // Fetch tables in parallel
       const tables = await this.fetchTables(tableIds);
-      console.log('tables', tables);
+      console.log("Tables", tables);
 
       return {
         uniqueName: solutionData.uniquename,
@@ -107,19 +113,17 @@ export class DataverseClient {
    */
   private async fetchTable(tableId: string): Promise<DataverseTable | null> {
     try {
+      const helper = new Helper(this.axiosInstance);
+      
       // Fetch entity metadata
-      const entityResponse = await this.axiosInstance.get(
-        `/EntityDefinitions(${tableId})?$select=LogicalName,DisplayName,SchemaName,PrimaryIdAttribute,PrimaryNameAttribute,TableType,IsIntersect`
-      );
-
-      const entity = entityResponse.data;
+      const entity = await window.dataverseAPI.getEntityMetadata(tableId,false,["LogicalName","DisplayName","SchemaName","PrimaryIdAttribute","PrimaryNameAttribute","TableType","IsIntersect"]);
+      console.log("Entity Metadata", entity);
 
       // Fetch attributes
-      const attributesResponse = await this.axiosInstance.get(
-        `/EntityDefinitions(${tableId})/Attributes?$select=LogicalName,DisplayName,AttributeType,IsPrimaryId,IsPrimaryName,RequiredLevel`
-      );
+      const responseAttributes = await helper.getOData(`EntityDefinitions(${tableId})/Attributes?$select=LogicalName,DisplayName,AttributeType,IsPrimaryId,IsPrimaryName,RequiredLevel`,this.isPPTB);
+      console.log("Entity Attributes", responseAttributes);
 
-      const attributes: DataverseAttribute[] = attributesResponse.data.value.map((attr: any) => ({
+      const attributes: DataverseAttribute[] = responseAttributes.map((attr: any) => ({
         logicalName: attr.LogicalName,
         displayName: attr.DisplayName?.UserLocalizedLabel?.Label || attr.LogicalName,
         type: this.mapAttributeType(attr.AttributeType),
@@ -133,12 +137,12 @@ export class DataverseClient {
 
       return {
         logicalName: entity.LogicalName,
-        displayName: entity.DisplayName?.UserLocalizedLabel?.Label || entity.LogicalName,
-        schemaName: entity.SchemaName,
-        primaryIdAttribute: entity.PrimaryIdAttribute,
-        primaryNameAttribute: entity.PrimaryNameAttribute,
-        isIntersect: entity.IsIntersect || false,
-        tableType: entity.TableType,
+        displayName: entity.LogicalName, //entity.DisplayName?.UserLocalizedLabel?.Label || entity.LogicalName,
+        schemaName: entity.SchemaName as string,
+        primaryIdAttribute: entity.PrimaryIdAttribute as string,
+        primaryNameAttribute: entity.PrimaryNameAttribute as string,
+        isIntersect: entity.IsIntersect as boolean || false,
+        tableType: entity.TableType as string,
         attributes: attributes,
         relationships: relationships,
       };
@@ -153,14 +157,14 @@ export class DataverseClient {
    */
   private async fetchRelationships(tableId: string, logicalName: string): Promise<DataverseRelationship[]> {
     const relationships: DataverseRelationship[] = [];
+    const helper = new Helper(this.axiosInstance);
 
     try {
       // Fetch One-to-Many relationships
-      const oneToManyResponse = await this.axiosInstance.get(
-        `/EntityDefinitions(${tableId})/OneToManyRelationships?$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute`
-      );
-
-      for (const rel of oneToManyResponse.data.value) {
+      const responseOneToMany = await helper.getOData(`EntityDefinitions(${tableId})/OneToManyRelationships?$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute`,this.isPPTB);
+      console.log("One-to-Many Relationships", responseOneToMany);
+      
+      for (const rel of responseOneToMany) {
         if (rel.ReferencedEntity === logicalName) {
           relationships.push({
             schemaName: rel.SchemaName,
@@ -172,11 +176,9 @@ export class DataverseClient {
       }
 
       // Fetch Many-to-One relationships
-      const manyToOneResponse = await this.axiosInstance.get(
-        `/EntityDefinitions(${tableId})/ManyToOneRelationships?$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute`
-      );
-
-      for (const rel of manyToOneResponse.data.value) {
+      const responseManyToOne = await helper.getOData(`EntityDefinitions(${tableId})/ManyToOneRelationships?$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute`,this.isPPTB);
+      console.log("Many-to-One Relationships", responseManyToOne);
+      for (const rel of responseManyToOne) {
         if (rel.ReferencingEntity === logicalName) {
           relationships.push({
             schemaName: rel.SchemaName,
@@ -188,11 +190,9 @@ export class DataverseClient {
       }
 
       // Fetch Many-to-Many relationships
-      const manyToManyResponse = await this.axiosInstance.get(
-        `/EntityDefinitions(${tableId})/ManyToManyRelationships?$select=SchemaName,Entity1LogicalName,Entity2LogicalName,IntersectEntityName`
-      );
-
-      for (const rel of manyToManyResponse.data.value) {
+      const responseManyToMany = await helper.getOData(`EntityDefinitions(${tableId})/ManyToManyRelationships?$select=SchemaName,Entity1LogicalName,Entity2LogicalName,IntersectEntityName`,this.isPPTB);
+      console.log("Many-to-Many Relationships", responseManyToMany);
+      for (const rel of responseManyToMany) {
         const isEntity1 = rel.Entity1LogicalName === logicalName;
         relationships.push({
           schemaName: rel.SchemaName,
@@ -240,11 +240,11 @@ export class DataverseClient {
    */
   async listSolutions(): Promise<Array<{ uniqueName: string; displayName: string; version: string }>> {
     try {
-      const response = await this.axiosInstance.get(
-        `/solutions?$select=uniquename,friendlyname,version&$filter=isvisible eq true&$orderby=friendlyname asc`
-      );
-
-      return response.data.value.map((s: any) => ({
+      const helper = new Helper(this.axiosInstance);
+      const solutions = await helper.getOData(`solutions?$select=uniquename,friendlyname,version&$filter=isvisible eq true&$orderby=friendlyname asc`,this.isPPTB);
+      console.log("Solutions", solutions);
+      
+      return solutions.map((s: any) => ({
         uniqueName: s.uniquename,
         displayName: s.friendlyname,
         version: s.version,
