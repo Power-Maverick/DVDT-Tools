@@ -76,8 +76,8 @@ export interface DataverseSolution {
  * Configuration for ERD generation
  */
 export interface ERDConfig {
-  /** Format of the output (mermaid, plantuml, graphviz) */
-  format: 'mermaid' | 'plantuml' | 'graphviz';
+  /** Format of the output (mermaid, plantuml, graphviz, drawio) */
+  format: 'mermaid' | 'plantuml' | 'graphviz' | 'drawio';
   /** Whether to include attributes in the diagram */
   includeAttributes: boolean;
   /** Whether to include relationships */

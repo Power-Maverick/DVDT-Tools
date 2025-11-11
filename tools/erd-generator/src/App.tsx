@@ -31,7 +31,7 @@ function App() {
     const [accessToken, setAccessToken] = useState<string>("");
     const [solutions, setSolutions] = useState<Solution[]>([]);
     const [selectedSolution, setSelectedSolution] = useState<string>("");
-    const [selectedFormat, setSelectedFormat] = useState<'mermaid' | 'plantuml'>('mermaid');
+    const [selectedFormat, setSelectedFormat] = useState<'mermaid' | 'plantuml' | 'drawio'>('mermaid');
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string>("");
     const [generatedDiagram, setGeneratedDiagram] = useState<string>("");
@@ -161,7 +161,8 @@ function App() {
 
         const extensions: Record<string, string> = {
             'mermaid': 'mmd',
-            'plantuml': 'puml'
+            'plantuml': 'puml',
+            'drawio': 'drawio'
         };
 
         const fileName = `${selectedSolution}-erd.${extensions[selectedFormat]}`;
@@ -385,6 +386,12 @@ function App() {
                             onClick={() => setSelectedFormat('plantuml')}
                         >
                             PlantUML
+                        </button>
+                        <button 
+                            className={`format-btn ${selectedFormat === 'drawio' ? 'active' : ''}`}
+                            onClick={() => setSelectedFormat('drawio')}
+                        >
+                            Draw.io
                         </button>
                     </div>
 
