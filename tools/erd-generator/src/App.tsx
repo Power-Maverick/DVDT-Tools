@@ -316,6 +316,38 @@ function App() {
                         }}
                     />
                 );
+            } else if (selectedFormat === 'drawio') {
+                // Render Draw.io diagram using embedded viewer
+                return (
+                    <div
+                        className="diagram-visual"
+                        ref={(el) => {
+                            (async () => {
+                                if (!el) return;
+                                try {
+                                    // Encode the draw.io XML for embedding
+                                    const encodedDiagram = encodeURIComponent(generatedDiagram);
+                                    
+                                    // Create an iframe with the draw.io viewer
+                                    const iframe = document.createElement('iframe');
+                                    iframe.style.width = '100%';
+                                    iframe.style.height = '600px';
+                                    iframe.style.border = '1px solid #ddd';
+                                    iframe.style.borderRadius = '4px';
+                                    
+                                    // Use draw.io embed viewer with the diagram
+                                    iframe.src = `https://viewer.diagrams.net/?highlight=0000ff&edit=_blank&layers=1&nav=1&title=ERD#R${encodedDiagram}`;
+                                    
+                                    el.innerHTML = '';
+                                    el.appendChild(iframe);
+                                } catch (error) {
+                                    console.error('Draw.io rendering error:', error);
+                                    el.innerHTML = '<div class="loading-mermaid">Cannot render Draw.io diagram. Switch to Text view to see the source.</div>';
+                                }
+                            })();
+                        }}
+                    />
+                );
             }
         }
 
