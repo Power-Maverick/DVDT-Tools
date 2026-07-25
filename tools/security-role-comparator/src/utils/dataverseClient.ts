@@ -2,10 +2,13 @@ import {
     CATEGORY_KIND_ORDER,
     EntityDisplayInfo,
     DataverseSolution,
+    NON_TABLE_OPERATION,
+    operationRank,
     ParsedPrivilege,
     Privilege,
     PrivilegeCategoryKind,
     PrivilegeDepth,
+    PRIVILEGE_TYPE_TO_OPERATION,
     RoleEditorLayoutItem,
     RoleEditorLayoutItemType,
     RolePrivilegeDepth,
@@ -25,10 +28,26 @@ interface RoleEditorLayoutMaps {
     hasData: boolean;
 }
 
+/** Authoritative privilege -> entity + operation index built from EntityDefinitions.Privileges. */
+interface EntityPrivilegeIndex {
+    byPrivilegeId: Map<string, EntityDisplayInfo>;
+    byPrivilegeName: Map<string, EntityDisplayInfo>;
+    operationByPrivilegeId: Map<string, string>;
+    operationByPrivilegeName: Map<string, string>;
+    /** True when the bulk metadata query returned at least one privilege mapping. */
+    hasData: boolean;
+}
+
+/** Normalizes a GUID/name key for map lookups (lowercase, strip braces/whitespace). */
+function normalizeKey(value: string): string {
+    return value.trim().toLowerCase().replace(/[{}]/g, "");
+}
+
 export class DataverseConnector {
     constructor(_envUrl: string) {}
     private readonly entityDisplayCache = new Map<string, EntityDisplayInfo | null>();
     private roleEditorLayoutMaps: RoleEditorLayoutMaps | null = null;
+    private entityPrivilegeIndex: EntityPrivilegeIndex | null = null;
     private allRolesCache: SecurityRole[] | null = null;
     private roleIdsBySolutionCache: Map<string, Set<string>> | null = null;
 
@@ -110,6 +129,68 @@ export class DataverseConnector {
             this.entityDisplayCache.set(normalized, null);
             return null;
         }
+    }
+
+    /**
+     * Build (and cache) an authoritative privilege -> entity + operation index from the metadata
+     * `EntityDefinitions.Privileges` collection. This maps every table privilege to its owning
+     * entity and operation regardless of how the privilege name is spelled, which is essential for
+     * tables whose privilege names don't match their logical name (e.g. prvReadUser -> systemuser,
+     * prvReadActivity -> activitypointer).
+     */
+    async fetchEntityPrivilegeIndex(): Promise<EntityPrivilegeIndex> {
+        if (this.entityPrivilegeIndex) {
+            return this.entityPrivilegeIndex;
+        }
+
+        const index: EntityPrivilegeIndex = {
+            byPrivilegeId: new Map(),
+            byPrivilegeName: new Map(),
+            operationByPrivilegeId: new Map(),
+            operationByPrivilegeName: new Map(),
+            hasData: false,
+        };
+
+        try {
+            const rows = await this.fetchAllRecords(
+                `EntityDefinitions?$select=LogicalName,SchemaName,DisplayName,IsCustomEntity,Privileges&LabelLanguages=1033`,
+            );
+            for (const row of rows) {
+                const logicalName = (row.LogicalName || "").toLowerCase();
+                if (!logicalName) continue;
+                const info: EntityDisplayInfo = {
+                    logicalName,
+                    schemaName: row.SchemaName || row.LogicalName || logicalName,
+                    displayName: this.readLabel(row.DisplayName) || row.SchemaName || row.LogicalName || logicalName,
+                    isCustom: row.IsCustomEntity === true,
+                };
+
+                const privileges = Array.isArray(row.Privileges) ? row.Privileges : [];
+                for (const priv of privileges) {
+                    // The Web API may return PrivilegeType as its enum string ("Read") or numeric value.
+                    const rawType = priv.PrivilegeType;
+                    const operation = typeof rawType === "string" ? rawType : PRIVILEGE_TYPE_TO_OPERATION[Number(rawType)];
+                    const validOperation = operation && operation !== "None" ? operation : undefined;
+
+                    if (priv.PrivilegeId) {
+                        const id = normalizeKey(String(priv.PrivilegeId));
+                        index.byPrivilegeId.set(id, info);
+                        if (validOperation) index.operationByPrivilegeId.set(id, validOperation);
+                    }
+                    if (priv.Name) {
+                        const name = normalizeKey(String(priv.Name));
+                        index.byPrivilegeName.set(name, info);
+                        if (validOperation) index.operationByPrivilegeName.set(name, validOperation);
+                    }
+                }
+            }
+        } catch {
+            // Metadata unavailable; index stays empty and callers fall back to per-entity lookups.
+        }
+
+        index.hasData = index.byPrivilegeId.size > 0 || index.byPrivilegeName.size > 0;
+        this.entityPrivilegeIndex = index;
+        return index;
     }
 
     /**
@@ -364,46 +445,57 @@ export class DataverseConnector {
             }
         }
 
-        // Only table (CRUD-style) privileges resolve to an entity definition; skip metadata
-        // lookups for miscellaneous privileges to avoid a flood of 404s.
-        const uniqueEntityLogicalNames = Array.from(
-            new Set(
-                Array.from(privilegeMap.values())
-                    .map((priv) => parsePrivilegeName(priv.name))
-                    .filter((parsed) => parsed.isKnownOperation)
-                    .map((parsed) => parsed.entityLogicalName),
-            ),
-        );
-        const [layoutMaps, entityInfoEntries] = await Promise.all([
-            this.fetchRoleEditorLayoutMaps(),
-            Promise.all(uniqueEntityLogicalNames.map(async (logicalName) => [logicalName, await this.fetchEntityDisplayInfo(logicalName)] as const)),
-        ]);
-        const entityInfoByLogicalName = new Map<string, EntityDisplayInfo | null>(entityInfoEntries);
+        const [layoutMaps, privIndex] = await Promise.all([this.fetchRoleEditorLayoutMaps(), this.fetchEntityPrivilegeIndex()]);
+
+        // Fallback: if the bulk privilege index is unavailable, resolve table entities the old way
+        // (per-entity metadata lookup keyed on the logical name parsed from the privilege name) so
+        // standard tables still classify correctly instead of collapsing into Miscellaneous.
+        const fallbackEntityByLogicalName = new Map<string, EntityDisplayInfo | null>();
+        if (!privIndex.hasData) {
+            const uniqueLogicalNames = Array.from(
+                new Set(
+                    Array.from(privilegeMap.values())
+                        .map((priv) => parsePrivilegeName(priv.name))
+                        .filter((parsed) => parsed.isKnownOperation)
+                        .map((parsed) => parsed.entityLogicalName),
+                ),
+            );
+            const entries = await Promise.all(uniqueLogicalNames.map(async (name) => [name, await this.fetchEntityDisplayInfo(name)] as const));
+            for (const [name, info] of entries) fallbackEntityByLogicalName.set(name, info);
+        }
 
         // Build the comparison list
         const result: ParsedPrivilege[] = [];
         for (const [privilegeid, priv] of privilegeMap) {
             const parsed = parsePrivilegeName(priv.name);
             const depthByRole: Record<string, PrivilegeDepth> = {};
-            const entityInfo = entityInfoByLogicalName.get(parsed.entityLogicalName) ?? null;
-            const category = this.resolveCategory(priv.name, parsed, entityInfo, layoutMaps);
+
+            const idKey = normalizeKey(privilegeid);
+            const nameKey = normalizeKey(priv.name);
+            // Resolve the entity + operation authoritatively from metadata; fall back per-entity.
+            const entityInfo =
+                privIndex.byPrivilegeId.get(idKey) ??
+                privIndex.byPrivilegeName.get(nameKey) ??
+                (parsed.isKnownOperation ? fallbackEntityByLogicalName.get(parsed.entityLogicalName) ?? null : null);
+            const indexOperation = privIndex.operationByPrivilegeId.get(idKey) ?? privIndex.operationByPrivilegeName.get(nameKey);
+            const category = this.resolveCategory(priv.name, entityInfo?.logicalName ?? null, entityInfo, layoutMaps);
 
             let entityLogicalName: string;
             let entitySchemaName: string;
             let entityDisplayName: string;
             let operation: string;
 
-            if (category.kind === "table") {
-                entityLogicalName = entityInfo?.logicalName ?? parsed.entityLogicalName;
-                entitySchemaName = entityInfo?.schemaName ?? parsed.entityToken;
-                entityDisplayName = entityInfo?.displayName ?? category.layoutDisplayName ?? parsed.entityToken;
-                operation = parsed.operation;
+            if (entityInfo) {
+                entityLogicalName = entityInfo.logicalName;
+                entitySchemaName = entityInfo.schemaName;
+                entityDisplayName = entityInfo.displayName;
+                operation = indexOperation ?? (parsed.isKnownOperation ? parsed.operation : NON_TABLE_OPERATION);
             } else {
                 // Miscellaneous / privacy privileges have no entity/operation split; each is its own row.
                 entityLogicalName = priv.name.toLowerCase();
                 entitySchemaName = priv.name;
                 entityDisplayName = category.layoutDisplayName || parsed.entityToken || priv.name;
-                operation = "";
+                operation = NON_TABLE_OPERATION;
             }
 
             for (const { roleId, privileges, depthMap } of roleData) {
@@ -445,24 +537,38 @@ export class DataverseConnector {
             if (entityCmp !== 0) return entityCmp;
             const schemaCmp = a.entitySchemaName.localeCompare(b.entitySchemaName);
             if (schemaCmp !== 0) return schemaCmp;
-            return a.operation.localeCompare(b.operation);
+            return operationRank(a.operation) - operationRank(b.operation);
         });
 
         return result;
     }
 
     /**
-     * Determine the OOB-style grouping category for a privilege using the role editor layout,
-     * falling back to entity-definition metadata (custom vs standard tables) when the layout
-     * doesn't cover the privilege.
+     * Determine the OOB-style grouping category for a privilege. Table privileges (those that
+     * resolve to an entity) group under their entity's role-editor tab; miscellaneous / privacy
+     * privileges group under their role-editor section.
      */
     private resolveCategory(
         privilegeName: string,
-        parsed: ReturnType<typeof parsePrivilegeName>,
+        entityLogicalName: string | null,
         entityInfo: EntityDisplayInfo | null,
         maps: RoleEditorLayoutMaps,
     ): { kind: PrivilegeCategoryKind; key: string; label: string; order: number; layoutDisplayName?: string } {
-        // 1. Miscellaneous / privacy privileges are listed explicitly in the layout.
+        // 1. Table privileges group under their entity's parent tab.
+        if (entityLogicalName) {
+            const entityItem = maps.tabByEntityLogicalName.get(entityLogicalName);
+            if (entityItem) {
+                const tab = entityItem.parentId ? maps.itemById.get(entityItem.parentId) : undefined;
+                const label = tab?.displayName || "Tables";
+                return { kind: "table", key: entityItem.parentId || "tables", label, order: tab?.tabOrder ?? 900, layoutDisplayName: entityItem.displayName };
+            }
+            // Fallback: entity known but not in the layout -> split custom vs standard tables.
+            return entityInfo?.isCustom
+                ? { kind: "table", key: "custom-tables", label: "Custom Tables", order: 902 }
+                : { kind: "table", key: "standard-tables", label: "Standard Tables", order: 901 };
+        }
+
+        // 2. Miscellaneous / privacy privileges are listed explicitly in the layout.
         const privItem = maps.privilegeByName.get(privilegeName.toLowerCase());
         if (privItem) {
             const kind: PrivilegeCategoryKind = privItem.isPrivacyRelated ? "privacy" : "misc";
@@ -471,22 +577,7 @@ export class DataverseConnector {
             return { kind, key: privItem.parentId || kind, label, order: section?.tabOrder ?? 0, layoutDisplayName: privItem.displayName };
         }
 
-        // 2. Table privileges are grouped under their entity's parent tab.
-        const entityItem = maps.tabByEntityLogicalName.get(parsed.entityLogicalName);
-        if (entityItem) {
-            const tab = entityItem.parentId ? maps.itemById.get(entityItem.parentId) : undefined;
-            const label = tab?.displayName || "Tables";
-            return { kind: "table", key: entityItem.parentId || "tables", label, order: tab?.tabOrder ?? 900, layoutDisplayName: entityItem.displayName };
-        }
-
-        // 3. Fallback: a resolved entity definition -> table, split custom vs standard.
-        if (entityInfo) {
-            return entityInfo.isCustom
-                ? { kind: "table", key: "custom-tables", label: "Custom Tables", order: 902 }
-                : { kind: "table", key: "standard-tables", label: "Standard Tables", order: 901 };
-        }
-
-        // 4. Fallback: unclassified non-table privilege.
+        // 3. Fallback: unclassified non-table privilege.
         return { kind: "misc", key: "misc", label: "Miscellaneous Privileges", order: 999 };
     }
 

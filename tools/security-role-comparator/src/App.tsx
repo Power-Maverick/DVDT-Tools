@@ -1,12 +1,63 @@
-import { Badge, Button, MessageBar, MessageBarBody, SearchBox, Spinner, Tooltip } from "@fluentui/react-components";
-import { AddCircleFilled, ArrowSyncRegular, DismissCircleRegular, SubtractCircleFilled } from "@fluentui/react-icons";
-import { useEffect, useMemo, useRef, useState, Fragment } from "react";
-import { DataverseSolution, DEPTH_LABELS, depthRank, ParsedPrivilege, PrivilegeDepth, SecurityRole } from "./models/interfaces";
+import { Button, Dropdown, MessageBar, MessageBarBody, Option, SearchBox, Spinner, Tooltip } from "@fluentui/react-components";
+import {
+    AddCircleFilled,
+    ArrowSyncRegular,
+    DismissCircleRegular,
+    OrganizationRegular,
+    PeopleRegular,
+    PeopleTeamRegular,
+    PersonRegular,
+    ProhibitedRegular,
+    SubtractCircleFilled,
+} from "@fluentui/react-icons";
+import { ComponentType, CSSProperties, Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { DEPTH_LABELS, depthRank, NON_TABLE_OPERATION, ParsedPrivilege, PrivilegeDepth, SecurityRole } from "./models/interfaces";
 import "./styles.css";
 import { DataverseConnector } from "./utils/dataverseClient";
 
 const MAX_COMPARE_ROLES = 5;
 const STORAGE_PREFIX = "security-role-comparator:recent-selections:v1";
+
+/** Ordered list of operation values used by the operation filter (incl. the non-table placeholder). */
+const OPERATION_ORDER = ["Create", "Read", "Write", "Delete", "Append", "AppendTo", "Assign", "Share", NON_TABLE_OPERATION];
+
+/** Friendlier labels for operation values (others display as-is). */
+const OPERATION_LABELS: Record<string, string> = { AppendTo: "Append To" };
+const operationLabel = (op: string) => OPERATION_LABELS[op] ?? op;
+
+/** Sentinel value for the "All" shortcut option in the multi-select filters. */
+const ALL_VALUE = "__all__";
+
+/**
+ * Computes the next multi-select state when an option is toggled, with an "All" shortcut.
+ * State is either [ALL_VALUE] (everything), a concrete subset (in `available` order), or [] (none).
+ * - Clicking "All" selects everything, or clears everything if already in "all" mode.
+ * - Clicking an individual option while in "all" mode starts a fresh selection of just that option.
+ * - Otherwise the individual option is toggled in/out of the current subset.
+ */
+function toggleMultiSelect(optionValue: string, current: string[], available: string[]): string[] {
+    const allMode = current.includes(ALL_VALUE);
+    if (optionValue === ALL_VALUE) {
+        return allMode ? [] : [ALL_VALUE];
+    }
+    if (allMode) {
+        return [optionValue];
+    }
+    const set = new Set(current);
+    if (set.has(optionValue)) set.delete(optionValue);
+    else set.add(optionValue);
+    return available.filter((value) => set.has(value));
+}
+
+/** True when a value passes a multi-select filter ("all" mode passes everything). */
+const passesMultiSelect = (value: string, selected: string[]) => selected.includes(ALL_VALUE) || selected.includes(value);
+
+/** Summary text shown in the multi-select filter's closed state. */
+function multiSelectSummary(selected: string[], available: string[], noun: string): string {
+    if (selected.includes(ALL_VALUE)) return `All ${noun}`;
+    if (selected.length === 0) return `No ${noun}`;
+    return `${selected.length} of ${available.length} ${noun}`;
+}
 
 /** Row-level filter modes for the comparison grid. */
 type DiffFilter = "differences" | "more" | "less" | "same" | "all";
@@ -19,26 +70,23 @@ const DIFF_FILTER_OPTIONS: { value: DiffFilter; label: string }[] = [
     { value: "all", label: "Show all" },
 ];
 
-const DEPTH_COLORS: Record<PrivilegeDepth, string> = {
-    [PrivilegeDepth.None]: "var(--depth-none)",
-    [PrivilegeDepth.Basic]: "var(--depth-basic)",
-    [PrivilegeDepth.Local]: "var(--depth-local)",
-    [PrivilegeDepth.Deep]: "var(--depth-deep)",
-    [PrivilegeDepth.Global]: "var(--depth-global)",
-};
+type DepthIconInfo = { Icon: ComponentType<{ className?: string; style?: CSSProperties; "aria-label"?: string }>; color: string };
 
-/** Maps a PrivilegeDepth value to the number of filled dots (0–4). */
-const DEPTH_FILLED_COUNT: Record<PrivilegeDepth, number> = {
-    [PrivilegeDepth.None]: 0,
-    [PrivilegeDepth.Basic]: 1,
-    [PrivilegeDepth.Local]: 2,
-    [PrivilegeDepth.Deep]: 3,
-    [PrivilegeDepth.Global]: 4,
+/**
+ * Fluent icons chosen to mirror the OOB Dataverse security-role editor depth glyphs,
+ * colored to echo that legend (None red, User teal, Business Unit blue, Parent-Child red,
+ * Organization green).
+ */
+const DEPTH_ICON: Record<PrivilegeDepth, DepthIconInfo> = {
+    [PrivilegeDepth.None]: { Icon: ProhibitedRegular, color: "#c50f1f" },
+    [PrivilegeDepth.Basic]: { Icon: PersonRegular, color: "#038387" },
+    [PrivilegeDepth.Local]: { Icon: PeopleRegular, color: "#0f6cbd" },
+    [PrivilegeDepth.Deep]: { Icon: PeopleTeamRegular, color: "#d13438" },
+    [PrivilegeDepth.Global]: { Icon: OrganizationRegular, color: "#107c10" },
 };
 
 interface SavedSelections {
     version: 1;
-    solutionId: string;
     baseRoleId: string;
     compareRoleIds: string[];
 }
@@ -57,11 +105,10 @@ function readSavedSelections(storageKey: string): SavedSelections | null {
         if (!raw) return null;
 
         const parsed = JSON.parse(raw) as Partial<SavedSelections>;
-        if (parsed.version !== 1 || typeof parsed.solutionId !== "string") return null;
+        if (parsed.version !== 1) return null;
 
         return {
             version: 1,
-            solutionId: parsed.solutionId,
             baseRoleId: typeof parsed.baseRoleId === "string" ? parsed.baseRoleId : "",
             compareRoleIds: Array.isArray(parsed.compareRoleIds) ? parsed.compareRoleIds.filter((value): value is string => typeof value === "string") : [],
         };
@@ -78,32 +125,16 @@ function saveSavedSelections(storageKey: string, selections: SavedSelections): v
     }
 }
 
-function getSolutionDisplayName(solution: DataverseSolution): string {
-    return solution.friendlyname?.trim() || solution.uniquename?.trim() || solution.solutionid;
-}
-
-function getSolutionGroupLabel(isManaged: boolean): string {
-    return isManaged ? "Managed Solutions" : "Unmanaged Solutions";
-}
-
 function getRoleGroupLabel(isManaged: boolean): string {
     return isManaged ? "Managed Roles" : "Unmanaged Roles";
 }
 
-function getRoleOriginLabel(role: SecurityRole): string {
-    if (Boolean(role.isautoassigned)) return "Auto-assigned";
-    if (role.issystemgenerated) return "System";
-    if (role.roletemplateid) return "Template";
-    return "Custom";
-}
-
 function getRoleDisplayName(role: SecurityRole, duplicateNames: Set<string>): string {
-    const parts = [role.name];
+    // Disambiguate same-named roles by business unit; otherwise show the plain role name.
     if (duplicateNames.has(role.name) && role.businessunitName) {
-        parts.push(role.businessunitName);
+        return `${role.name} · ${role.businessunitName}`;
     }
-    parts.push(getRoleOriginLabel(role));
-    return parts.join(" · ");
+    return role.name;
 }
 
 function normalizeSelections(preferredIds: string[], validIds: Set<string>, disallowIds: Set<string> = new Set<string>()): string[] {
@@ -120,25 +151,18 @@ function normalizeSelections(preferredIds: string[], validIds: Set<string>, disa
     return normalized;
 }
 
-/** Renders 4 dots indicating the privilege depth (filled up to the depth level). */
-function DepthDots({ depth }: { depth: PrivilegeDepth }) {
-    const filledCount = DEPTH_FILLED_COUNT[depth] ?? 0;
-    const color = DEPTH_COLORS[depth];
+/** Renders the Fluent icon representing a privilege depth level. */
+function DepthIcon({ depth }: { depth: PrivilegeDepth }) {
+    const { Icon, color } = DEPTH_ICON[depth] ?? DEPTH_ICON[PrivilegeDepth.None];
     return (
         <Tooltip content={DEPTH_LABELS[depth]} relationship="label">
-            <span className="depth-dots" aria-label={DEPTH_LABELS[depth]}>
-                {[0, 1, 2, 3].map((i) => (
-                    <span key={i} className="depth-dot" style={{ background: i < filledCount ? color : "var(--dot-empty)" }} />
-                ))}
-            </span>
+            <Icon className="depth-icon" style={{ color }} aria-label={DEPTH_LABELS[depth]} />
         </Tooltip>
     );
 }
 
 export default function App() {
-    const [solutions, setSolutions] = useState<DataverseSolution[]>([]);
     const [roles, setRoles] = useState<SecurityRole[]>([]);
-    const [selectedSolutionId, setSelectedSolutionId] = useState<string>("");
     const [loadingEnvironment, setLoadingEnvironment] = useState(false);
     const [loadingRoles, setLoadingRoles] = useState(false);
     const [baseRoleId, setBaseRoleId] = useState<string>("");
@@ -149,6 +173,8 @@ export default function App() {
     const [error, setError] = useState<string>("");
     const [searchTerm, setSearchTerm] = useState("");
     const [diffFilter, setDiffFilter] = useState<DiffFilter>("differences");
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+    const [selectedOperations, setSelectedOperations] = useState<string[]>([]);
     const connectorRef = useRef<DataverseConnector | null>(null);
     const storageKeyRef = useRef<string>("");
     const initializedRef = useRef(false);
@@ -162,24 +188,16 @@ export default function App() {
 
         saveSavedSelections(storageKeyRef.current, {
             version: 1,
-            solutionId: selectedSolutionId,
             baseRoleId,
             compareRoleIds: compareRoleIds.filter((id) => id !== ""),
         });
-    }, [baseRoleId, compareRoleIds, selectedSolutionId]);
+    }, [baseRoleId, compareRoleIds]);
 
-    const applySelectionDefaults = (availableRoles: SecurityRole[], savedSelections: SavedSelections | null, solutionId: string) => {
+    const applySelectionDefaults = (availableRoles: SecurityRole[], savedSelections: SavedSelections | null) => {
         const validRoleIds = new Set(availableRoles.map((role) => role.roleid));
 
-        const baseId =
-            savedSelections?.solutionId === solutionId && savedSelections.baseRoleId && validRoleIds.has(savedSelections.baseRoleId)
-                ? savedSelections.baseRoleId
-                : "";
-
-        const compareIds =
-            savedSelections?.solutionId === solutionId
-                ? normalizeSelections(savedSelections.compareRoleIds, validRoleIds, new Set(baseId ? [baseId] : []))
-                : [];
+        const baseId = savedSelections?.baseRoleId && validRoleIds.has(savedSelections.baseRoleId) ? savedSelections.baseRoleId : "";
+        const compareIds = savedSelections ? normalizeSelections(savedSelections.compareRoleIds, validRoleIds, new Set(baseId ? [baseId] : [])) : [];
 
         setBaseRoleId(baseId);
         setCompareRoleIds(compareIds.length > 0 ? compareIds : [""]);
@@ -198,27 +216,16 @@ export default function App() {
             storageKeyRef.current = buildStorageKey(conn.url);
 
             const savedSelections = readSavedSelections(storageKeyRef.current);
-            const fetchedSolutions = await connectorRef.current.fetchSolutions();
-            setSolutions(fetchedSolutions);
-
-            const validSolutionIds = new Set(fetchedSolutions.map((solution) => solution.solutionid));
-            const preferredSolutionId =
-                savedSelections?.solutionId && validSolutionIds.has(savedSelections.solutionId)
-                    ? savedSelections.solutionId
-                    : fetchedSolutions.find((solution) => !solution.ismanaged)?.solutionid ?? fetchedSolutions[0]?.solutionid ?? "";
-
-            setSelectedSolutionId(preferredSolutionId);
-
-            const fetchedRoles = preferredSolutionId ? await connectorRef.current.fetchRoles(preferredSolutionId) : [];
+            const fetchedRoles = await connectorRef.current.fetchRoles();
             setRoles(fetchedRoles);
-            applySelectionDefaults(fetchedRoles, savedSelections, preferredSolutionId);
+            applySelectionDefaults(fetchedRoles, savedSelections);
 
             setComparisonData([]);
             setComparedRoleIds([]);
-            initializedRef.current = fetchedSolutions.length > 0;
+            initializedRef.current = fetchedRoles.length > 0;
 
-            if (!fetchedSolutions.length) {
-                setError("No solutions containing security roles were found in the connected environment.");
+            if (!fetchedRoles.length) {
+                setError("No security roles were found in the connected environment.");
             }
         } catch (err: any) {
             setError(err.message || "Failed to load security roles");
@@ -226,35 +233,6 @@ export default function App() {
             setLoadingEnvironment(false);
             setLoadingRoles(false);
         }
-    };
-
-    const loadRolesForSolution = async (solutionId: string) => {
-        if (!connectorRef.current) return;
-
-        setLoadingRoles(true);
-        setError("");
-
-        try {
-            const fetchedRoles = solutionId ? await connectorRef.current.fetchRoles(solutionId) : [];
-            setRoles(fetchedRoles);
-            setComparisonData([]);
-            setComparedRoleIds([]);
-            setBaseRoleId("");
-            setCompareRoleIds([""]);
-
-            if (!fetchedRoles.length) {
-                setError("No roles were found for the selected solution.");
-            }
-        } catch (err: any) {
-            setError(err.message || "Failed to load roles for the selected solution");
-        } finally {
-            setLoadingRoles(false);
-        }
-    };
-
-    const handleSolutionChange = async (nextSolutionId: string) => {
-        setSelectedSolutionId(nextSolutionId);
-        await loadRolesForSolution(nextSolutionId);
     };
 
     const addCompareSlot = () => {
@@ -271,16 +249,18 @@ export default function App() {
         setCompareRoleIds((prev) => prev.map((id, i) => (i === index ? value : id)));
     };
 
-    const canCompare = !!selectedSolutionId && !!baseRoleId && compareRoleIds.some((id) => id !== "");
+    const canCompare = !!baseRoleId && compareRoleIds.some((id) => id !== "");
 
-    const runComparison = async () => {
-        if (!canCompare || !connectorRef.current) return;
+    const runComparisonWith = async (baseId: string, compareIds: string[]) => {
+        if (!connectorRef.current) return;
+        const activeCompareIds = compareIds.filter((id) => id !== "");
+        if (!baseId || activeCompareIds.length === 0) return;
+
         setComparing(true);
         setError("");
         setComparisonData([]);
         try {
-            const activeCompareIds = compareRoleIds.filter((id) => id !== "");
-            const allIds = [baseRoleId, ...activeCompareIds];
+            const allIds = [baseId, ...activeCompareIds];
             const data = await connectorRef.current.buildComparisonData(allIds);
             setComparisonData(data);
             setComparedRoleIds(allIds);
@@ -292,13 +272,22 @@ export default function App() {
         }
     };
 
+    const runComparison = () => runComparisonWith(baseRoleId, compareRoleIds);
+
+    // Swap a compare-slot role with the current base role, then refresh the comparison.
+    const setCompareRoleAsBase = async (index: number) => {
+        const promotedRoleId = compareRoleIds[index];
+        if (!promotedRoleId) return;
+        const nextCompareIds = compareRoleIds.map((id, i) => (i === index ? baseRoleId : id));
+        setBaseRoleId(promotedRoleId);
+        setCompareRoleIds(nextCompareIds);
+        await runComparisonWith(promotedRoleId, nextCompareIds);
+    };
+
     const getRoleName = (roleId: string) => roles.find((r) => r.roleid === roleId)?.name ?? roleId;
 
     const getEntityLabel = (priv: ParsedPrivilege) => `${priv.entityDisplayName} (${priv.entitySchemaName})`;
 
-    const selectedSolution = solutions.find((solution) => solution.solutionid === selectedSolutionId);
-    const unmanagedSolutions = solutions.filter((solution) => !solution.ismanaged);
-    const managedSolutions = solutions.filter((solution) => solution.ismanaged);
     const unmanagedRoles = roles.filter((role) => !role.ismanaged);
     const managedRoles = roles.filter((role) => role.ismanaged);
     const duplicateRoleNames = useMemo(() => {
@@ -340,6 +329,31 @@ export default function App() {
         }
     };
 
+    // Distinct category labels present in the data, preserving the connector's ordering.
+    const availableCategories = useMemo(() => {
+        const seen: string[] = [];
+        const set = new Set<string>();
+        for (const priv of comparisonData) {
+            if (!set.has(priv.categoryLabel)) {
+                set.add(priv.categoryLabel);
+                seen.push(priv.categoryLabel);
+            }
+        }
+        return seen;
+    }, [comparisonData]);
+
+    // Operations present in the data, in a stable canonical order.
+    const availableOperations = useMemo(() => {
+        const present = new Set(comparisonData.map((priv) => priv.operation));
+        return OPERATION_ORDER.filter((op) => present.has(op));
+    }, [comparisonData]);
+
+    // Default both multiselect filters to "all" whenever a new comparison is run.
+    useEffect(() => {
+        setSelectedCategories([ALL_VALUE]);
+        setSelectedOperations([ALL_VALUE]);
+    }, [comparisonData]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const filteredData = comparisonData.filter((priv) => {
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -347,6 +361,8 @@ export default function App() {
                 return false;
             }
         }
+        if (!passesMultiSelect(priv.categoryLabel, selectedCategories)) return false;
+        if (!passesMultiSelect(priv.operation, selectedOperations)) return false;
         return matchesDiffFilter(priv);
     });
 
@@ -380,45 +396,11 @@ export default function App() {
     return (
         <div className="src-root">
             <div className="selector-bar">
-                <div className="solution-panel">
-                    <div className="role-selector-group solution-selector-group">
-                        <label className="role-label base-label">Solution</label>
-                        <div className="select-wrapper">
-                            <select
-                                className="role-select"
-                                value={selectedSolutionId}
-                                onChange={(e) => void handleSolutionChange(e.target.value)}
-                                disabled={loadingEnvironment || loadingRoles}
-                            >
-                                <option value="">— Select solution —</option>
-                                <optgroup label={getSolutionGroupLabel(false)}>
-                                    {unmanagedSolutions.map((solution) => (
-                                        <option key={solution.solutionid} value={solution.solutionid}>
-                                            {getSolutionDisplayName(solution)}
-                                        </option>
-                                    ))}
-                                </optgroup>
-                                <optgroup label={getSolutionGroupLabel(true)}>
-                                    {managedSolutions.map((solution) => (
-                                        <option key={solution.solutionid} value={solution.solutionid}>
-                                            {getSolutionDisplayName(solution)}
-                                        </option>
-                                    ))}
-                                </optgroup>
-                            </select>
-                        </div>
-                    </div>
-                    <div className="solution-subtext">
-                        <span className="field-note">Selections are remembered per environment in this browser.</span>
-                        {selectedSolution && <span className="field-meta">Loaded from: {getSolutionDisplayName(selectedSolution)}</span>}
-                    </div>
-                </div>
-
-                <div className="selector-content">
+                <div className="selector-row">
                     <div className="role-selector-group">
                         <label className="role-label base-label">Base Role</label>
                         <div className="select-wrapper">
-                            <select className="role-select" value={baseRoleId} onChange={(e) => setBaseRoleId(e.target.value)} disabled={loadingEnvironment || loadingRoles || !selectedSolutionId}>
+                            <select className="role-select" value={baseRoleId} onChange={(e) => setBaseRoleId(e.target.value)} disabled={loadingEnvironment || loadingRoles}>
                                 <option value="">— Select base role —</option>
                                 <optgroup label={getRoleGroupLabel(false)}>
                                     {unmanagedRoles.map((role) => (
@@ -441,13 +423,20 @@ export default function App() {
                     <div className="compare-slots">
                         {compareRoleIds.map((id, idx) => (
                             <div key={idx} className="role-selector-group">
-                                <label className="role-label">Compare {idx + 1}</label>
+                                <label className="role-label">
+                                    Compare {idx + 1}
+                                    {id && (
+                                        <button type="button" className="set-base-link" onClick={() => void setCompareRoleAsBase(idx)} title="Swap this role with the base role and re-compare">
+                                            (Set as Base)
+                                        </button>
+                                    )}
+                                </label>
                                 <div className="select-wrapper compare-select-row">
                                     <select
                                         className="role-select"
                                         value={id}
                                         onChange={(e) => setCompareRole(idx, e.target.value)}
-                                        disabled={loadingEnvironment || loadingRoles || !selectedSolutionId}
+                                        disabled={loadingEnvironment || loadingRoles}
                                     >
                                         <option value="">— Select role —</option>
                                         <optgroup label={getRoleGroupLabel(false)}>
@@ -485,7 +474,7 @@ export default function App() {
                         ))}
 
                         {compareRoleIds.length < MAX_COMPARE_ROLES && (
-                            <button className="add-slot-btn" onClick={addCompareSlot} disabled={loadingEnvironment || loadingRoles || !selectedSolutionId}>
+                            <button className="add-slot-btn" onClick={addCompareSlot} disabled={loadingEnvironment || loadingRoles}>
                                 + Add Role
                             </button>
                         )}
@@ -519,6 +508,40 @@ export default function App() {
                         size="small"
                         className="search-box"
                     />
+                    <Dropdown
+                        className="multi-filter"
+                        size="small"
+                        multiselect
+                        placeholder="Groups"
+                        selectedOptions={selectedCategories}
+                        value={multiSelectSummary(selectedCategories, availableCategories, "groups")}
+                        onOptionSelect={(_e, data) => setSelectedCategories((prev) => toggleMultiSelect(data.optionValue ?? "", prev, availableCategories))}
+                        aria-label="Filter by group"
+                    >
+                        <Option value={ALL_VALUE}>All groups</Option>
+                        {availableCategories.map((label) => (
+                            <Option key={label} value={label}>
+                                {label}
+                            </Option>
+                        ))}
+                    </Dropdown>
+                    <Dropdown
+                        className="multi-filter"
+                        size="small"
+                        multiselect
+                        placeholder="Operations"
+                        selectedOptions={selectedOperations}
+                        value={multiSelectSummary(selectedOperations, availableOperations, "operations")}
+                        onOptionSelect={(_e, data) => setSelectedOperations((prev) => toggleMultiSelect(data.optionValue ?? "", prev, availableOperations))}
+                        aria-label="Filter by operation"
+                    >
+                        <Option value={ALL_VALUE}>All operations</Option>
+                        {availableOperations.map((op) => (
+                            <Option key={op} value={op}>
+                                {operationLabel(op)}
+                            </Option>
+                        ))}
+                    </Dropdown>
                     <select
                         className="diff-filter-select"
                         value={diffFilter}
@@ -551,11 +574,6 @@ export default function App() {
                                 {comparedRoleIds.map((rid, i) => (
                                     <th key={rid} className={`col-role ${i === 0 ? "col-base" : ""}`} title={getRoleName(rid)}>
                                         <span className="role-col-name">{getRoleName(rid)}</span>
-                                        {i === 0 && (
-                                            <Badge appearance="tint" color="brand" size="small" className="base-badge">
-                                                Base
-                                            </Badge>
-                                        )}
                                     </th>
                                 ))}
                             </tr>
@@ -583,7 +601,7 @@ export default function App() {
                                                         </div>
                                                     </td>
                                                 )}
-                                                <td className="col-operation">{priv.operation}</td>
+                                                <td className="col-operation">{operationLabel(priv.operation)}</td>
                                                 {comparedRoleIds.map((rid, ci) => {
                                                     const depth = priv.depthByRole[rid] ?? PrivilegeDepth.None;
                                                     const baseRank = depthRank(priv.depthByRole[comparedRoleIds[0]]);
@@ -591,21 +609,17 @@ export default function App() {
                                                     const direction = ci === 0 ? "none" : rank > baseRank ? "more" : rank < baseRank ? "less" : "none";
                                                     return (
                                                         <td key={rid} className={`col-role-cell ${ci === 0 ? "col-base-cell" : ""}`}>
-                                                            <div className="cell-content">
-                                                                <span className="diff-icon-slot">
-                                                                    {direction === "more" && (
-                                                                        <Tooltip content="More permission than base" relationship="label">
-                                                                            <AddCircleFilled className="diff-icon diff-more" aria-label="More permission than base" />
-                                                                        </Tooltip>
-                                                                    )}
-                                                                    {direction === "less" && (
-                                                                        <Tooltip content="Less permission than base" relationship="label">
-                                                                            <SubtractCircleFilled className="diff-icon diff-less" aria-label="Less permission than base" />
-                                                                        </Tooltip>
-                                                                    )}
-                                                                </span>
-                                                                <DepthDots depth={depth} />
-                                                            </div>
+                                                            {direction === "more" && (
+                                                                <Tooltip content="More permission than base" relationship="label">
+                                                                    <AddCircleFilled className="diff-icon diff-more" aria-label="More permission than base" />
+                                                                </Tooltip>
+                                                            )}
+                                                            {direction === "less" && (
+                                                                <Tooltip content="Less permission than base" relationship="label">
+                                                                    <SubtractCircleFilled className="diff-icon diff-less" aria-label="Less permission than base" />
+                                                                </Tooltip>
+                                                            )}
+                                                            <DepthIcon depth={depth} />
                                                         </td>
                                                     );
                                                 })}
@@ -630,7 +644,7 @@ export default function App() {
                 <div className="legend-bar">
                     {(Object.entries(DEPTH_LABELS) as [string, string][]).map(([depth, label]) => (
                         <span key={depth} className="legend-item">
-                            <DepthDots depth={Number(depth) as PrivilegeDepth} />
+                            <DepthIcon depth={Number(depth) as PrivilegeDepth} />
                             <span className="legend-label">{label}</span>
                         </span>
                     ))}
@@ -648,7 +662,7 @@ export default function App() {
             {!hasResults && !comparing && !loadingRoles && !loadingEnvironment && !error && (
                 <div className="empty-state">
                     <p>
-                        Select a solution, then choose a base role and one or more comparison roles before clicking <strong>Compare</strong>.
+                        Choose a base role and one or more comparison roles, then click <strong>Compare</strong>.
                     </p>
                 </div>
             )}

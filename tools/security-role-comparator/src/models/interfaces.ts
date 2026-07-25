@@ -51,6 +51,21 @@ export interface RoleEditorLayoutItem {
     parentId?: string;
 }
 
+/** Maps the Dataverse PrivilegeType enum (from EntityDefinitions.Privileges) to an operation label. */
+export const PRIVILEGE_TYPE_TO_OPERATION: Record<number, string> = {
+    1: "Create",
+    2: "Read",
+    3: "Write",
+    4: "Delete",
+    5: "Assign",
+    6: "Share",
+    7: "Append",
+    8: "AppendTo",
+};
+
+/** Placeholder "operation" shown for non-table (miscellaneous / privacy) privileges. */
+export const NON_TABLE_OPERATION = "Enable";
+
 export interface Privilege {
     privilegeid: string;
     name: string;
@@ -126,6 +141,15 @@ export const CATEGORY_KIND_ORDER: Record<PrivilegeCategoryKind, number> = {
 /** Standard privilege operations extracted from privilege names */
 export const PRIVILEGE_OPERATIONS = ["Create", "Read", "Write", "Delete", "Append", "AppendTo", "Assign", "Share"] as const;
 export type PrivilegeOperation = (typeof PRIVILEGE_OPERATIONS)[number];
+
+/** Canonical display/sort order for operations, matching the built-in role editor (non-table last). */
+export const OPERATION_SORT_ORDER = [...PRIVILEGE_OPERATIONS, NON_TABLE_OPERATION];
+
+/** Sort rank for an operation; unknown operations sort after all known ones. */
+export function operationRank(operation: string): number {
+    const index = OPERATION_SORT_ORDER.indexOf(operation as (typeof OPERATION_SORT_ORDER)[number]);
+    return index === -1 ? OPERATION_SORT_ORDER.length : index;
+}
 
 /**
  * Operations checked longest-first so more specific prefixes win. Without this, "AppendTo"

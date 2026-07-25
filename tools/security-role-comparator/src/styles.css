@@ -70,9 +70,8 @@ body {
 /* ───────────── Selector bar ───────────── */
 .selector-bar {
     display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 10px;
     padding: 10px 12px;
     background: var(--bg-subtle);
     border: 1px solid var(--border);
@@ -81,8 +80,16 @@ body {
     flex-shrink: 0;
 }
 
+.selector-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+}
+
 .solution-panel {
-    flex: 1 1 100%;
     display: flex;
     align-items: flex-end;
     gap: 12px;
@@ -92,20 +99,10 @@ body {
 .solution-subtext {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 2px;
-    margin-left: auto;
-    text-align: right;
     min-width: 0;
-}
-
-.selector-content {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    flex: 1 1 100%;
-    min-width: 0;
+    padding-bottom: 2px;
 }
 
 .role-selector-group {
@@ -134,6 +131,27 @@ body {
 }
 
 body.dark-theme .base-label {
+    color: #60a5fa;
+}
+
+.set-base-link {
+    margin-left: 6px;
+    padding: 0;
+    background: none;
+    border: none;
+    color: #2563eb;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    cursor: pointer;
+}
+
+.set-base-link:hover {
+    text-decoration: underline;
+}
+
+body.dark-theme .set-base-link {
     color: #60a5fa;
 }
 
@@ -270,6 +288,10 @@ body.dark-theme .base-label {
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
+.multi-filter {
+    min-width: 150px;
+}
+
 .result-count {
     font-size: 11px;
     color: var(--text-muted);
@@ -339,15 +361,14 @@ body.dark-theme .base-label {
 }
 
 .role-col-name {
-    display: block;
-    max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.base-badge {
-    margin-top: 2px;
+    max-width: 100%;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.25;
 }
 
 /* Body rows */
@@ -408,6 +429,7 @@ body.dark-theme .base-label {
 
 .col-role-cell {
     text-align: center;
+    position: relative;
 }
 
 .col-base-cell {
@@ -446,24 +468,17 @@ body.dark-theme .base-label {
     padding: 0 6px;
 }
 
-/* Comparison cell content: directional diff icon + depth dots */
-.cell-content {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    justify-content: center;
-}
-
-.diff-icon-slot {
-    width: 14px;
-    display: inline-flex;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
+/* Comparison cell: depth icon centered, directional diff icon pinned to the left edge. */
 .diff-icon {
     font-size: 14px;
     line-height: 1;
+}
+
+.col-role-cell .diff-icon {
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 .diff-more {
@@ -488,21 +503,11 @@ body.dark-theme .diff-less {
     padding: 16px;
 }
 
-/* ───────────── Depth dots ───────────── */
-.depth-dots {
-    display: inline-flex;
-    gap: 3px;
-    align-items: center;
-    cursor: default;
-}
-
-.depth-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
+/* ───────────── Depth icons ───────────── */
+.depth-icon {
+    font-size: 16px;
+    line-height: 1;
     flex-shrink: 0;
-    transition: background 0.15s;
 }
 
 /* ───────────── Legend ───────────── */
