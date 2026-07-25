@@ -14,7 +14,6 @@
     --bg-row-even: #ffffff;
     --bg-row-odd: #f9fafb;
     --bg-base-col: #eff6ff;
-    --bg-diff: #fef9c3;
     --border: #e5e7eb;
     --text: #111827;
     --text-muted: #6b7280;
@@ -36,7 +35,6 @@ body.dark-theme {
     --bg-row-even: #1f2937;
     --bg-row-odd: #111827;
     --bg-base-col: #1e3a5f;
-    --bg-diff: #422006;
     --border: #374151;
     --text: #f9fafb;
     --text-muted: #9ca3af;
@@ -72,7 +70,7 @@ body {
 /* ───────────── Selector bar ───────────── */
 .selector-bar {
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 12px;
     flex-wrap: wrap;
     padding: 10px 12px;
@@ -83,6 +81,21 @@ body {
     flex-shrink: 0;
 }
 
+.solution-panel {
+    flex: 1 1 100%;
+    display: flex;
+    min-width: 0;
+}
+
+.selector-content {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    flex: 1 1 100%;
+    min-width: 0;
+}
+
 .role-selector-group {
     display: flex;
     flex-direction: column;
@@ -90,6 +103,10 @@ body {
     min-width: 160px;
     max-width: 220px;
     flex: 1 1 160px;
+}
+
+.solution-selector-group {
+    max-width: 320px;
 }
 
 .role-label {
@@ -167,6 +184,16 @@ body.dark-theme .base-label {
     flex: 1;
 }
 
+.field-note,
+.field-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.field-meta {
+    margin-top: -1px;
+}
+
 .add-slot-btn {
     padding: 5px 10px;
     font-size: 12px;
@@ -211,6 +238,24 @@ body.dark-theme .base-label {
 
 .search-box {
     max-width: 260px;
+}
+
+.diff-filter-select {
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--font);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.diff-filter-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 .result-count {
@@ -323,6 +368,24 @@ body.dark-theme .base-label {
     border-right: 1px solid var(--border);
 }
 
+.entity-cell-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.entity-display-name {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.entity-schema-name {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
 .comparison-table td {
     padding: 5px 10px;
     vertical-align: middle;
@@ -339,8 +402,72 @@ body.dark-theme .base-label {
     background: var(--bg-base-col);
 }
 
-.cell-diff {
-    background: var(--bg-diff);
+/* Category section header rows */
+.category-row td {
+    padding: 0;
+}
+
+.category-cell {
+    position: sticky;
+    left: 0;
+    background: var(--bg-subtle);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text);
+    padding: 6px 10px !important;
+    border-top: 2px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.category-kind-tag {
+    margin-left: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0 6px;
+}
+
+/* Comparison cell content: directional diff icon + depth dots */
+.cell-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+}
+
+.diff-icon-slot {
+    width: 14px;
+    display: inline-flex;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.diff-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.diff-more {
+    color: #16a34a;
+}
+
+.diff-less {
+    color: #dc2626;
+}
+
+body.dark-theme .diff-more {
+    color: #4ade80;
+}
+
+body.dark-theme .diff-less {
+    color: #f87171;
 }
 
 .empty-row {
@@ -387,19 +514,6 @@ body.dark-theme .base-label {
 .legend-label {
     font-size: 11px;
     color: var(--text-muted);
-}
-
-.diff-indicator {
-    width: 16px;
-    height: 12px;
-    border-radius: 3px;
-    background: var(--bg-diff);
-    border: 1px solid #ca8a04;
-    flex-shrink: 0;
-}
-
-body.dark-theme .diff-indicator {
-    border-color: #92400e;
 }
 
 /* ───────────── Empty state ───────────── */
