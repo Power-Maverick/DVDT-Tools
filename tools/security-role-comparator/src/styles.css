@@ -84,6 +84,18 @@ body {
 .solution-panel {
     flex: 1 1 100%;
     display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    min-width: 0;
+}
+
+.solution-subtext {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    margin-left: auto;
+    text-align: right;
     min-width: 0;
 }
 

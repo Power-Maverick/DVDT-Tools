@@ -12,7 +12,7 @@ const STORAGE_PREFIX = "security-role-comparator:recent-selections:v1";
 type DiffFilter = "differences" | "more" | "less" | "same" | "all";
 
 const DIFF_FILTER_OPTIONS: { value: DiffFilter; label: string }[] = [
-    { value: "differences", label: "Differences only" },
+    { value: "differences", label: "All differences" },
     { value: "more", label: "More than base" },
     { value: "less", label: "Less than base" },
     { value: "same", label: "Same as base" },
@@ -218,7 +218,7 @@ export default function App() {
             initializedRef.current = fetchedSolutions.length > 0;
 
             if (!fetchedSolutions.length) {
-                setError("No solutions were found in the connected environment.");
+                setError("No solutions containing security roles were found in the connected environment.");
             }
         } catch (err: any) {
             setError(err.message || "Failed to load security roles");
@@ -407,6 +407,8 @@ export default function App() {
                                 </optgroup>
                             </select>
                         </div>
+                    </div>
+                    <div className="solution-subtext">
                         <span className="field-note">Selections are remembered per environment in this browser.</span>
                         {selectedSolution && <span className="field-meta">Loaded from: {getSolutionDisplayName(selectedSolution)}</span>}
                     </div>

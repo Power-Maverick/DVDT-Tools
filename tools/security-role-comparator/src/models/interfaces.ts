@@ -127,6 +127,13 @@ export const CATEGORY_KIND_ORDER: Record<PrivilegeCategoryKind, number> = {
 export const PRIVILEGE_OPERATIONS = ["Create", "Read", "Write", "Delete", "Append", "AppendTo", "Assign", "Share"] as const;
 export type PrivilegeOperation = (typeof PRIVILEGE_OPERATIONS)[number];
 
+/**
+ * Operations checked longest-first so more specific prefixes win. Without this, "AppendTo"
+ * privileges (e.g. prvAppendTocai_Allocation) would incorrectly match "Append" and leave a
+ * bogus "Tocai_Allocation" entity instead of "cai_Allocation".
+ */
+const OPERATIONS_BY_LENGTH_DESC = [...PRIVILEGE_OPERATIONS].sort((a, b) => b.length - a.length);
+
 /** Parsed details of a privilege name */
 export interface ParsedPrivilegeName {
     entityToken: string;
@@ -142,7 +149,7 @@ export interface ParsedPrivilegeName {
  */
 export function parsePrivilegeName(name: string): ParsedPrivilegeName {
     const stripped = name.startsWith("prv") ? name.substring(3) : name;
-    for (const op of PRIVILEGE_OPERATIONS) {
+    for (const op of OPERATIONS_BY_LENGTH_DESC) {
         if (stripped.startsWith(op)) {
             const entityToken = stripped.substring(op.length) || "Global";
             return {

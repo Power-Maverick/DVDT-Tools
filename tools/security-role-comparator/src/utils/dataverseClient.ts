@@ -87,9 +87,10 @@ export class DataverseConnector {
 
         try {
             const query = `EntityDefinitions(LogicalName='${normalized}')?$select=LogicalName,SchemaName,DisplayName,IsCustomEntity`;
-            const rows = await this.fetchAllRecords(query);
-            const row = rows[0];
-            if (!row) {
+            // A keyed EntityDefinitions request returns a single object (no `value` array),
+            // so read the response directly rather than through fetchAllRecords.
+            const row = await this.executeQuery(query);
+            if (!row || !row.LogicalName) {
                 this.entityDisplayCache.set(normalized, null);
                 return null;
             }
@@ -176,20 +177,41 @@ export class DataverseConnector {
     }
 
     /**
-     * Fetch all solutions from the environment, ordered with unmanaged solutions first.
+     * Fetch the distinct set of solution ids (lowercased) that own at least one security role.
+     * Used to limit the solution picker to solutions that actually contain roles.
+     */
+    async fetchSolutionIdsWithRoles(): Promise<Set<string>> {
+        const query = `roles?$select=solutionid&$top=5000`;
+        const rows = await this.fetchAllRecords(query);
+        const ids = new Set<string>();
+        for (const row of rows) {
+            if (row.solutionid) ids.add(String(row.solutionid).toLowerCase());
+        }
+        return ids;
+    }
+
+    /**
+     * Fetch solutions that contain at least one security role, ordered with unmanaged solutions first.
      */
     async fetchSolutions(): Promise<DataverseSolution[]> {
-        const query = `solutions?$select=solutionid,friendlyname,uniquename,ismanaged,parentsolutionid&$orderby=ismanaged asc,friendlyname asc,uniquename asc&$top=5000`;
-        const rows = await this.fetchAllRecords(query);
-        return rows.map(
-            (row: any): DataverseSolution => ({
-                solutionid: row.solutionid,
-                friendlyname: row.friendlyname,
-                uniquename: row.uniquename,
-                ismanaged: row.ismanaged,
-                parentsolutionid: row.parentsolutionid,
-            }),
-        );
+        const [rows, solutionIdsWithRoles] = await Promise.all([
+            this.fetchAllRecords(
+                `solutions?$select=solutionid,friendlyname,uniquename,ismanaged,parentsolutionid&$orderby=ismanaged asc,friendlyname asc,uniquename asc&$top=5000`,
+            ),
+            this.fetchSolutionIdsWithRoles(),
+        ]);
+
+        return rows
+            .filter((row: any) => row.solutionid && solutionIdsWithRoles.has(String(row.solutionid).toLowerCase()))
+            .map(
+                (row: any): DataverseSolution => ({
+                    solutionid: row.solutionid,
+                    friendlyname: row.friendlyname,
+                    uniquename: row.uniquename,
+                    ismanaged: row.ismanaged,
+                    parentsolutionid: row.parentsolutionid,
+                }),
+            );
     }
 
     /** Fetch all security roles from the environment, sorted by name. */
@@ -199,11 +221,9 @@ export class DataverseConnector {
             "name",
             "solutionid",
             "ismanaged",
-            "roletemplateid",
+            "_roletemplateid_value",
             "isautoassigned",
-            "issystemgenerated",
-            "isinherited",
-            "canbedeleted",
+            "issytemgenerated",
             "_businessunitid_value",
         ];
         const filter = solutionId ? `&$filter=solutionid eq ${this.sanitizeGuid(solutionId)}` : "";
@@ -215,11 +235,10 @@ export class DataverseConnector {
                 name: row.name,
                 solutionid: row.solutionid,
                 ismanaged: row.ismanaged,
-                roletemplateid: row.roletemplateid,
+                roletemplateid: row._roletemplateid_value,
                 isautoassigned: row.isautoassigned,
-                issystemgenerated: row.issystemgenerated,
-                isinherited: row.isinherited,
-                canbedeleted: row.canbedeleted,
+                // NB: the role entity's logical name for this column is misspelled in Dataverse.
+                issystemgenerated: row.issytemgenerated,
                 _businessunitid_value: row._businessunitid_value,
                 businessunitName: row["_businessunitid_value@OData.Community.Display.V1.FormattedValue"],
             }),
