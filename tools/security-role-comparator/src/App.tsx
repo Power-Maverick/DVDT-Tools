@@ -152,11 +152,11 @@ function normalizeSelections(preferredIds: string[], validIds: Set<string>, disa
 }
 
 /** Renders the Fluent icon representing a privilege depth level. */
-function DepthIcon({ depth }: { depth: PrivilegeDepth }) {
+function DepthIcon({ depth, muted }: { depth: PrivilegeDepth; muted?: boolean }) {
     const { Icon, color } = DEPTH_ICON[depth] ?? DEPTH_ICON[PrivilegeDepth.None];
     return (
         <Tooltip content={DEPTH_LABELS[depth]} relationship="label">
-            <Icon className="depth-icon" style={{ color }} aria-label={DEPTH_LABELS[depth]} />
+            <Icon className={`depth-icon${muted ? " depth-icon-muted" : ""}`} style={{ color }} aria-label={DEPTH_LABELS[depth]} />
         </Tooltip>
     );
 }
@@ -508,40 +508,6 @@ export default function App() {
                         size="small"
                         className="search-box"
                     />
-                    <Dropdown
-                        className="multi-filter"
-                        size="small"
-                        multiselect
-                        placeholder="Groups"
-                        selectedOptions={selectedCategories}
-                        value={multiSelectSummary(selectedCategories, availableCategories, "groups")}
-                        onOptionSelect={(_e, data) => setSelectedCategories((prev) => toggleMultiSelect(data.optionValue ?? "", prev, availableCategories))}
-                        aria-label="Filter by group"
-                    >
-                        <Option value={ALL_VALUE}>All groups</Option>
-                        {availableCategories.map((label) => (
-                            <Option key={label} value={label}>
-                                {label}
-                            </Option>
-                        ))}
-                    </Dropdown>
-                    <Dropdown
-                        className="multi-filter"
-                        size="small"
-                        multiselect
-                        placeholder="Operations"
-                        selectedOptions={selectedOperations}
-                        value={multiSelectSummary(selectedOperations, availableOperations, "operations")}
-                        onOptionSelect={(_e, data) => setSelectedOperations((prev) => toggleMultiSelect(data.optionValue ?? "", prev, availableOperations))}
-                        aria-label="Filter by operation"
-                    >
-                        <Option value={ALL_VALUE}>All operations</Option>
-                        {availableOperations.map((op) => (
-                            <Option key={op} value={op}>
-                                {operationLabel(op)}
-                            </Option>
-                        ))}
-                    </Dropdown>
                     <select
                         className="diff-filter-select"
                         value={diffFilter}
@@ -554,6 +520,46 @@ export default function App() {
                             </option>
                         ))}
                     </select>
+                    <Dropdown
+                        className="multi-filter"
+                        size="small"
+                        multiselect
+                        placeholder="Groups"
+                        listbox={{ className: "filter-listbox" }}
+                        selectedOptions={selectedCategories}
+                        value={multiSelectSummary(selectedCategories, availableCategories, "groups")}
+                        onOptionSelect={(_e, data) => setSelectedCategories((prev) => toggleMultiSelect(data.optionValue ?? "", prev, availableCategories))}
+                        aria-label="Filter by group"
+                    >
+                        <Option className="filter-option" value={ALL_VALUE}>
+                            All groups
+                        </Option>
+                        {availableCategories.map((label) => (
+                            <Option className="filter-option" key={label} value={label}>
+                                {label}
+                            </Option>
+                        ))}
+                    </Dropdown>
+                    <Dropdown
+                        className="multi-filter"
+                        size="small"
+                        multiselect
+                        placeholder="Operations"
+                        listbox={{ className: "filter-listbox" }}
+                        selectedOptions={selectedOperations}
+                        value={multiSelectSummary(selectedOperations, availableOperations, "operations")}
+                        onOptionSelect={(_e, data) => setSelectedOperations((prev) => toggleMultiSelect(data.optionValue ?? "", prev, availableOperations))}
+                        aria-label="Filter by operation"
+                    >
+                        <Option className="filter-option" value={ALL_VALUE}>
+                            All operations
+                        </Option>
+                        {availableOperations.map((op) => (
+                            <Option className="filter-option" key={op} value={op}>
+                                {operationLabel(op)}
+                            </Option>
+                        ))}
+                    </Dropdown>
                     <span className="result-count">
                         {filteredData.length} / {comparisonData.length} privileges
                     </span>
@@ -619,7 +625,7 @@ export default function App() {
                                                                     <SubtractCircleFilled className="diff-icon diff-less" aria-label="Less permission than base" />
                                                                 </Tooltip>
                                                             )}
-                                                            <DepthIcon depth={depth} />
+                                                            <DepthIcon depth={depth} muted={ci > 0 && direction === "none"} />
                                                         </td>
                                                     );
                                                 })}

@@ -289,7 +289,18 @@ body.dark-theme .set-base-link {
 }
 
 .multi-filter {
+    min-width: 118px;
+    max-width: 150px;
+}
+
+/* Compact options in the Groups/Operations listbox to match the ribbon text size. */
+.filter-listbox {
     min-width: 150px;
+}
+
+.filter-listbox .filter-option {
+    font-size: 12px !important;
+    min-height: 26px;
 }
 
 .result-count {
@@ -308,10 +319,10 @@ body.dark-theme .set-base-link {
 }
 
 .comparison-table {
-    width: 100%;
+    width: auto;
     border-collapse: collapse;
     font-size: 12px;
-    table-layout: fixed;
+    table-layout: auto;
 }
 
 .comparison-table thead {
@@ -336,8 +347,8 @@ body.dark-theme .set-base-link {
 }
 
 .col-entity {
-    width: 160px;
-    min-width: 100px;
+    min-width: 120px;
+    max-width: 360px;
     position: sticky;
     left: 0;
     background: var(--bg-subtle);
@@ -346,14 +357,15 @@ body.dark-theme .set-base-link {
 }
 
 .col-operation {
-    width: 110px;
-    min-width: 80px;
+    min-width: 70px;
+    max-width: 140px;
 }
 
 .col-role {
-    width: 120px;
     min-width: 90px;
+    max-width: 160px;
     text-align: center;
+    border-left: 1px solid var(--border);
 }
 
 .col-base {
@@ -406,17 +418,24 @@ body.dark-theme .set-base-link {
     flex-direction: column;
     gap: 2px;
     min-width: 0;
+    max-width: 100%;
 }
 
 .entity-display-name {
     font-weight: 600;
     color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .entity-schema-name {
     font-size: 11px;
     color: var(--text-muted);
     font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .comparison-table td {
@@ -430,6 +449,13 @@ body.dark-theme .set-base-link {
 .col-role-cell {
     text-align: center;
     position: relative;
+    border-left: 1px solid var(--border);
+}
+
+/* Close off the right edge of the last compare column. */
+.comparison-table th.col-role:last-child,
+.comparison-table td.col-role-cell:last-child {
+    border-right: 1px solid var(--border);
 }
 
 .col-base-cell {
@@ -508,6 +534,12 @@ body.dark-theme .diff-less {
     font-size: 16px;
     line-height: 1;
     flex-shrink: 0;
+}
+
+/* Compare cells that match the base are de-emphasized so differences stand out. */
+.depth-icon-muted {
+    opacity: 0.4;
+    filter: saturate(0.6);
 }
 
 /* ───────────── Legend ───────────── */
