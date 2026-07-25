@@ -29,6 +29,8 @@ export class DataverseConnector {
     constructor(_envUrl: string) {}
     private readonly entityDisplayCache = new Map<string, EntityDisplayInfo | null>();
     private roleEditorLayoutMaps: RoleEditorLayoutMaps | null = null;
+    private allRolesCache: SecurityRole[] | null = null;
+    private roleIdsBySolutionCache: Map<string, Set<string>> | null = null;
 
     private toQueryPath(queryOrUrl: string): string {
         if (!queryOrUrl.startsWith("http")) {
@@ -177,45 +179,58 @@ export class DataverseConnector {
     }
 
     /**
-     * Fetch the distinct set of solution ids (lowercased) that own at least one security role.
-     * Used to limit the solution picker to solutions that actually contain roles.
+     * Map every solution to the set of security-role ids it contains. Role membership is unioned
+     * from two sources:
+     *  1. solutioncomponent (component type 20 = Role) — records roles explicitly added to a
+     *     solution, which is how a role appears in unmanaged solutions other than the one that
+     *     created it.
+     *  2. role.solutionid — the solution that created the role (usually the default/Active
+     *     solution), which solutioncomponent may not enumerate.
      */
-    async fetchSolutionIdsWithRoles(): Promise<Set<string>> {
-        const query = `roles?$select=solutionid&$top=5000`;
-        const rows = await this.fetchAllRecords(query);
-        const ids = new Set<string>();
-        for (const row of rows) {
-            if (row.solutionid) ids.add(String(row.solutionid).toLowerCase());
+    async fetchRoleIdsBySolution(): Promise<Map<string, Set<string>>> {
+        if (this.roleIdsBySolutionCache) {
+            return this.roleIdsBySolutionCache;
         }
-        return ids;
+
+        const map = new Map<string, Set<string>>();
+        const add = (solutionId?: string, roleId?: string) => {
+            const s = solutionId ? String(solutionId).toLowerCase() : "";
+            const r = roleId ? String(roleId).toLowerCase() : "";
+            if (!s || !r) return;
+            let set = map.get(s);
+            if (!set) {
+                set = new Set<string>();
+                map.set(s, set);
+            }
+            set.add(r);
+        };
+
+        // Source 1: explicit solution components (componenttype 20 = Role).
+        try {
+            const rows = await this.fetchAllRecords(`solutioncomponents?$select=objectid,_solutionid_value&$filter=componenttype eq 20&$top=5000`);
+            for (const row of rows) add(row._solutionid_value, row.objectid);
+        } catch {
+            // solutioncomponents may not be queryable; fall through to owning-solution mapping.
+        }
+
+        // Source 2: each role's owning solution.
+        try {
+            const allRoles = await this.fetchAllRolesRaw();
+            for (const role of allRoles) add(role.solutionid, role.roleid);
+        } catch {
+            // ignore; map may still contain source-1 data
+        }
+
+        this.roleIdsBySolutionCache = map;
+        return map;
     }
 
-    /**
-     * Fetch solutions that contain at least one security role, ordered with unmanaged solutions first.
-     */
-    async fetchSolutions(): Promise<DataverseSolution[]> {
-        const [rows, solutionIdsWithRoles] = await Promise.all([
-            this.fetchAllRecords(
-                `solutions?$select=solutionid,friendlyname,uniquename,ismanaged,parentsolutionid&$orderby=ismanaged asc,friendlyname asc,uniquename asc&$top=5000`,
-            ),
-            this.fetchSolutionIdsWithRoles(),
-        ]);
+    /** Fetch every security role in the environment (cached), sorted by managed state then name. */
+    private async fetchAllRolesRaw(): Promise<SecurityRole[]> {
+        if (this.allRolesCache) {
+            return this.allRolesCache;
+        }
 
-        return rows
-            .filter((row: any) => row.solutionid && solutionIdsWithRoles.has(String(row.solutionid).toLowerCase()))
-            .map(
-                (row: any): DataverseSolution => ({
-                    solutionid: row.solutionid,
-                    friendlyname: row.friendlyname,
-                    uniquename: row.uniquename,
-                    ismanaged: row.ismanaged,
-                    parentsolutionid: row.parentsolutionid,
-                }),
-            );
-    }
-
-    /** Fetch all security roles from the environment, sorted by name. */
-    async fetchRoles(solutionId?: string): Promise<SecurityRole[]> {
         const selects = [
             "roleid",
             "name",
@@ -226,10 +241,9 @@ export class DataverseConnector {
             "issytemgenerated",
             "_businessunitid_value",
         ];
-        const filter = solutionId ? `&$filter=solutionid eq ${this.sanitizeGuid(solutionId)}` : "";
-        const query = `roles?$select=${selects.join(",")}${filter}&$orderby=ismanaged asc,name asc&$top=5000`;
+        const query = `roles?$select=${selects.join(",")}&$orderby=ismanaged asc,name asc&$top=5000`;
         const rows = await this.fetchAllRecords(query);
-        return rows.map(
+        this.allRolesCache = rows.map(
             (row: any): SecurityRole => ({
                 roleid: row.roleid,
                 name: row.name,
@@ -243,6 +257,50 @@ export class DataverseConnector {
                 businessunitName: row["_businessunitid_value@OData.Community.Display.V1.FormattedValue"],
             }),
         );
+        return this.allRolesCache;
+    }
+
+    /**
+     * Fetch solutions that contain at least one security role (via solutioncomponent membership),
+     * ordered with unmanaged solutions first.
+     */
+    async fetchSolutions(): Promise<DataverseSolution[]> {
+        const [rows, roleIdsBySolution] = await Promise.all([
+            this.fetchAllRecords(
+                `solutions?$select=solutionid,friendlyname,uniquename,ismanaged,parentsolutionid&$orderby=ismanaged asc,friendlyname asc,uniquename asc&$top=5000`,
+            ),
+            this.fetchRoleIdsBySolution(),
+        ]);
+
+        return rows
+            .filter((row: any) => {
+                const id = row.solutionid ? String(row.solutionid).toLowerCase() : "";
+                return id && (roleIdsBySolution.get(id)?.size ?? 0) > 0;
+            })
+            .map(
+                (row: any): DataverseSolution => ({
+                    solutionid: row.solutionid,
+                    friendlyname: row.friendlyname,
+                    uniquename: row.uniquename,
+                    ismanaged: row.ismanaged,
+                    parentsolutionid: row.parentsolutionid,
+                }),
+            );
+    }
+
+    /** Fetch the security roles contained in a solution (via solutioncomponent membership). */
+    async fetchRoles(solutionId?: string): Promise<SecurityRole[]> {
+        const allRoles = await this.fetchAllRolesRaw();
+        if (!solutionId) {
+            return allRoles;
+        }
+
+        const roleIdsBySolution = await this.fetchRoleIdsBySolution();
+        const roleIds = roleIdsBySolution.get(solutionId.toLowerCase());
+        if (!roleIds || roleIds.size === 0) {
+            return [];
+        }
+        return allRoles.filter((role) => roleIds.has(role.roleid.toLowerCase()));
     }
 
     /**
