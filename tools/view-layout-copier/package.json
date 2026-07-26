@@ -1,17 +1,13 @@
 {
   "name": "@power-maverick/tool-view-layout-copier",
   "displayName": "View Layout Copier",
-  "version": "1.1.4",
+  "version": "2.0.0",
   "description": "Copy column layout, sort order and components configuration from one view to multiple views of the same table in a single operation",
   "icon": "icons/layoutReplicator.svg",
   "contributors": [
     {
       "name": "Power Maverick",
       "url": "https://github.com/Power-Maverick"
-    },
-    {
-      "name": "MscrmTools",
-      "url": "https://github.com/MscrmTools"
     },
     {
       "name": "Scott Sewell",
@@ -30,7 +26,7 @@
     "preview": "vite preview",
     "finalize-package": "npm shrinkwrap",
     "version-stable": "npm version patch --no-git-tag-version",
-    "publish-package": "npm run build && npm run version-stable && npm publish --access public"
+    "publish-package": "npm run build && npm publish --access public"
   },
   "files": [
     "dist",

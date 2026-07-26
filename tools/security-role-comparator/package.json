@@ -8,6 +8,10 @@
         {
             "name": "Power Maverick",
             "url": "https://github.com/Power-Maverick"
+        },
+        {
+            "name": "Scott Sewell",
+            "url": "https://github.com/mscottsewell"
         }
     ],
     "license": "GPL-2.0",
@@ -23,7 +27,7 @@
         "preview": "vite preview",
         "finalize-package": "npm shrinkwrap",
         "version-stable": "npm version patch --no-git-tag-version",
-        "publish-package": "npm run build && npm run version-stable && npm publish --access public"
+        "publish-package": "npm run build && npm publish --access public"
     },
     "files": [
         "dist",
