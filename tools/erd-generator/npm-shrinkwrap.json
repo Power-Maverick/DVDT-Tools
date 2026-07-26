@@ -1,12 +1,12 @@
 {
   "name": "@power-maverick/tool-erd-generator",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
       "name": "@power-maverick/tool-erd-generator",
-      "version": "1.1.6",
+      "version": "1.1.7",
       "license": "GPL-2.0",
       "dependencies": {
         "@types/plantuml-encoder": "^1.4.2",
