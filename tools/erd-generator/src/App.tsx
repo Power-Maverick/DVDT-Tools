@@ -1,21 +1,39 @@
-import plantumlEncoder from 'plantuml-encoder';
-import { useEffect, useState } from "react";
-import { ERDGenerator } from "./components/ERDGenerator";
-import { DataverseSolution } from "./models/interfaces";
-import { DataverseClient } from "./utils/DataverseClient";
+import { Edge, Node, ReactFlowInstance } from "@xyflow/react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { AppTopbar } from "./components/AppTopbar";
+import { CanvasActionDock } from "./components/CanvasActionDock";
+import { DiagramPreview } from "./components/DiagramPreview";
+import { ExportPanel } from "./components/ExportPanel";
+import { GraphCanvas } from "./components/GraphCanvas";
+import { GraphTableNodeData } from "./components/GraphTableNode";
+import { PublishConfirmModal } from "./components/PublishConfirmModal";
+import { PublishResultModal } from "./components/PublishResultModal";
+import { useAppActions } from "./hooks/useAppActions";
+import {
+    useEnvironmentInitialization,
+    useGeneratedDiagrams,
+    useGraphBootAnimation,
+    useMermaidPreload,
+    useRelationshipNameSuggestionSync,
+    useSelectionSync,
+    useSessionLibraryInit,
+    useSolutionsLoader,
+    useTopbarDismiss,
+    useVisualSync,
+} from "./hooks/useAppLifecycle";
+import { ERDEditorModel, ModelDiff, diffModel, totalChangeCount } from "./models/editor";
+import { GraphPositions } from "./utils/graphLayout";
+import { ExportMode, OutputFormat, VisualExportType } from "./utils/visualExport";
 
-// Declare the APIs available on window
 declare global {
     interface Window {
-        // DVDT (VS Code) API
         acquireVsCodeApi?: () => {
             postMessage: (message: any) => void;
         };
-        
-        // Mermaid library (loaded externally for visualization)
         mermaid?: {
             initialize: (config: any) => void;
             init: (config: any, element: HTMLElement | null) => Promise<void>;
+            render: (id: string, text: string) => Promise<{ svg: string; bindFunctions?: (element: Element) => void }>;
         };
     }
 }
@@ -26,392 +44,359 @@ interface Solution {
     version: string;
 }
 
+interface EditorSnapshot {
+    model: ERDEditorModel;
+    positions: GraphPositions;
+}
+
+type DiagramFormat = Exclude<OutputFormat, "flow">;
+type VisualMode = "flow" | DiagramFormat;
+type EdgeStyleType = "step" | "smoothstep" | "bezier";
+type TopbarFlyout = "display" | "canvas" | "session" | null;
+type CanvasActionTab = "table" | "attribute" | "relationship";
+
+const ERROR_DISPLAY_DURATION_MS = 7000;
+const SESSION_SHARE_VERSION = 1;
+
 function App() {
     const [isPPTB, setIsPPTB] = useState<boolean>(false);
     const [connectionUrl, setConnectionUrl] = useState<string>("");
     const [accessToken, setAccessToken] = useState<string>("");
     const [solutions, setSolutions] = useState<Solution[]>([]);
     const [selectedSolution, setSelectedSolution] = useState<string>("");
-    const [selectedFormat, setSelectedFormat] = useState<'mermaid' | 'plantuml' | 'drawio'>('mermaid');
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string>("");
-    const [generatedDiagrams, setGeneratedDiagrams] = useState<{
-        mermaid: string;
-        plantuml: string;
-        drawio: string;
-    }>({ mermaid: '', plantuml: '', drawio: '' });
-    const [viewMode, setViewMode] = useState<'visual' | 'text'>('text');
-    const [mermaidReady, setMermaidReady] = useState<boolean>(false);
-    
-    // Configuration options
+
+    const [baselineModel, setBaselineModel] = useState<ERDEditorModel | null>(null);
+    const [workingModel, setWorkingModel] = useState<ERDEditorModel | null>(null);
+    const [positions, setPositions] = useState<GraphPositions>({});
+    const [historyPast, setHistoryPast] = useState<EditorSnapshot[]>([]);
+    const [historyFuture, setHistoryFuture] = useState<EditorSnapshot[]>([]);
+
+    const [visualMode, setVisualMode] = useState<VisualMode>("flow");
+    const [previewMode, setPreviewMode] = useState<"visual" | "text">("visual");
+    const [selectedFormat, setSelectedFormat] = useState<OutputFormat>("mermaid");
+    const [exportMode, setExportMode] = useState<ExportMode>("both");
+    const [visualExportType, setVisualExportType] = useState<VisualExportType>("html");
+    const [edgeType, setEdgeType] = useState<EdgeStyleType>("smoothstep");
+    const [hideAttributes, setHideAttributes] = useState<boolean>(false);
+    const [hideRelationshipNames, setHideRelationshipNames] = useState<boolean>(false);
+    const [openTopbarFlyout, setOpenTopbarFlyout] = useState<TopbarFlyout>(null);
+
     const [includeAttributes, setIncludeAttributes] = useState<boolean>(true);
     const [includeRelationships, setIncludeRelationships] = useState<boolean>(true);
-    const [maxAttributesPerTable, setMaxAttributesPerTable] = useState<number>(10);
+    const [maxAttributesPerTable, setMaxAttributesPerTable] = useState<number>(12);
 
-    // Detect environment and initialize
-    useEffect(() => {
-        const initializeEnvironment = async () => {
-            // Check if we're in VS Code (DVDT)
-            if (typeof window.acquireVsCodeApi !== 'undefined') {
-                setIsPPTB(false);
-                setLoading(true);
-                
-                // Listen for credentials from DVDT
-                const handleMessage = (event: MessageEvent) => {
-                    const message = event.data;
-                    if (message.command === 'setCredentials') {
-                        setConnectionUrl(message.environmentUrl);
-                        setAccessToken(message.accessToken);
-                        setLoading(false);
-                    }
-                };
-                window.addEventListener('message', handleMessage);
-                
-                return () => {
-                    window.removeEventListener('message', handleMessage);
-                };
+    const [exportSource, setExportSource] = useState<"working" | "baseline">("working");
+    const [exportChangedOnly, setExportChangedOnly] = useState<boolean>(false);
+
+    const [showChangedOnlyInGraph, setShowChangedOnlyInGraph] = useState<boolean>(false);
+    const [showImpactMarkers, setShowImpactMarkers] = useState<boolean>(true);
+
+    const [selectedTableId, setSelectedTableId] = useState<string>("");
+    const [newTableLogicalName, setNewTableLogicalName] = useState<string>("");
+    const [newTableDisplayName, setNewTableDisplayName] = useState<string>("");
+    const [renameTableDisplayName, setRenameTableDisplayName] = useState<string>("");
+    const [newAttributeLogicalName, setNewAttributeLogicalName] = useState<string>("");
+    const [newAttributeDisplayName, setNewAttributeDisplayName] = useState<string>("");
+    const [newAttributeType, setNewAttributeType] = useState<string>("string");
+
+    const [relationshipName, setRelationshipName] = useState<string>("");
+    const [relationshipNameTouched, setRelationshipNameTouched] = useState<boolean>(false);
+    const [relationshipTarget, setRelationshipTarget] = useState<string>("");
+    const [relationshipType, setRelationshipType] = useState<"OneToMany" | "ManyToOne" | "ManyToMany">("ManyToOne");
+
+    const [publishing, setPublishing] = useState<boolean>(false);
+    const [showPublishConfirm, setShowPublishConfirm] = useState<boolean>(false);
+    const [publishResult, setPublishResult] = useState<{ success: boolean; lines: string[] } | null>(null);
+
+    const [showExportPanel, setShowExportPanel] = useState<boolean>(false);
+    const [showCanvasActionPanel, setShowCanvasActionPanel] = useState<boolean>(false);
+    const [canvasActionTab, setCanvasActionTab] = useState<CanvasActionTab>("table");
+    const [graphEntryAnimating, setGraphEntryAnimating] = useState<boolean>(false);
+    const [graphBootTick, setGraphBootTick] = useState<number>(0);
+    const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance<Node<GraphTableNodeData>, Edge> | null>(null);
+
+    const [generatedDiagrams, setGeneratedDiagrams] = useState<Record<OutputFormat, string>>({
+        flow: "",
+        mermaid: "",
+        plantuml: "",
+        drawio: "",
+    });
+
+    const [mermaidReady, setMermaidReady] = useState<boolean>(false);
+    const topbarRef = useRef<HTMLElement>(null);
+    const sessionFileInputRef = useRef<HTMLInputElement | null>(null);
+    const [savedSessionNames, setSavedSessionNames] = useState<string[]>([]);
+    const [sessionNameInput, setSessionNameInput] = useState<string>("");
+    const [selectedSessionName, setSelectedSessionName] = useState<string>("");
+
+    const diff: ModelDiff | null = useMemo(() => {
+        if (!baselineModel || !workingModel) return null;
+        return diffModel(baselineModel, workingModel);
+    }, [baselineModel, workingModel]);
+
+    const visibleTableIds = useMemo(() => {
+        if (!workingModel) return new Set<string>();
+        if (!showChangedOnlyInGraph || !diff) return new Set(workingModel.tables.map((table) => table.id));
+
+        const ids = new Set<string>([...diff.newTableIds, ...diff.renamedTableIds]);
+        for (const table of workingModel.tables) {
+            if (table.attributes.some((attribute) => diff.newAttributeIds.has(attribute.id) || diff.renamedAttributeIds.has(attribute.id))) {
+                ids.add(table.id);
             }
-            // Check if we're in PPTB
-            else if (window.toolboxAPI) {
-                setIsPPTB(true);
-                
-                // Fetch connection details                
-                try {
-                    // Try to get context from API
-                    const activeConnection = await window.toolboxAPI.connections.getActiveConnection();
-                    setConnectionUrl(activeConnection?.url || "");
-                } catch (error) {
-                    console.error('Failed to get tool context:', error);
+        }
+        for (const rel of workingModel.relationships) {
+            if (diff.newRelationshipIds.has(rel.id)) {
+                ids.add(rel.fromTableId);
+                ids.add(rel.toTableId);
+            }
+        }
+        return ids;
+    }, [workingModel, showChangedOnlyInGraph, diff]);
+
+    const selectedTable = useMemo(() => workingModel?.tables.find((table) => table.id === selectedTableId) || null, [workingModel, selectedTableId]);
+    const selectedRelationshipTargetTable = useMemo(() => workingModel?.tables.find((table) => table.id === relationshipTarget) || null, [workingModel, relationshipTarget]);
+    const availableVisualExportTypes = useMemo<VisualExportType[]>(() => {
+        if (selectedFormat === "drawio") return ["html"];
+        return ["html", "svg", "png"];
+    }, [selectedFormat]);
+
+    const changeCount = diff ? totalChangeCount(diff) : 0;
+    const publisherPrefixWithUnderscore = useMemo(() => {
+        if (!workingModel?.publisherPrefix) return "";
+        return `${workingModel.publisherPrefix.trim()}_`;
+    }, [workingModel]);
+
+    const publishReview = useMemo(() => {
+        if (!diff || !workingModel) return null;
+
+        const tableById = new Map(workingModel.tables.map((table) => [table.id, table]));
+        const tableName = (id: string) => tableById.get(id)?.logicalName || id;
+
+        const newTables = Array.from(diff.newTableIds).map((id) => tableName(id));
+        const renamedTables = Array.from(diff.renamedTableIds).map((id) => tableName(id));
+
+        const newAttributes: string[] = [];
+        const renamedAttributes: string[] = [];
+        for (const table of workingModel.tables) {
+            for (const attribute of table.attributes) {
+                if (diff.newAttributeIds.has(attribute.id)) {
+                    newAttributes.push(`${table.logicalName}.${attribute.logicalName}`);
                 }
-                
-                setLoading(false);
-            } else {
-                // Standalone mode - show error
-                setError('Not running in supported environment (DVDT or PPTB)');
-                setLoading(false);
-            }
-        };
-
-        initializeEnvironment();
-    }, []);
-
-    // Load solutions when credentials are available
-    useEffect(() => {
-        if (connectionUrl) {
-            loadSolutions();
-        }
-    }, [connectionUrl]);
-
-    const loadSolutions = async () => {
-        try {
-            const client = new DataverseClient({
-                environmentUrl: connectionUrl,
-                accessToken: accessToken
-            }, isPPTB);
-            
-            const solutionList = await client.listSolutions();
-            setSolutions(solutionList);
-        } catch (error: any) {
-            showError(`Failed to load solutions: ${error.message}`);
-        }
-    };
-
-    const showError = (message: string) => {
-        setError(message);
-        setTimeout(() => setError(""), 5000);
-    };
-
-    const handleGenerateERD = async () => {
-        if (!selectedSolution) {
-            showError('Please select a solution first');
-            return;
-        }
-
-        try {
-            setLoading(true);
-            
-            const client = new DataverseClient({
-                environmentUrl: connectionUrl,
-                accessToken: accessToken
-            }, isPPTB);
-
-            const solution: DataverseSolution = await client.fetchSolution(selectedSolution);
-            
-            // Common configuration for all generators
-            const generatorConfig = {
-                includeAttributes,
-                includeRelationships,
-                maxAttributesPerTable
-            };
-            
-            // Generate all 3 formats at once
-            const mermaidDiagram = new ERDGenerator({ ...generatorConfig, format: 'mermaid' }).generate(solution);
-            const plantumlDiagram = new ERDGenerator({ ...generatorConfig, format: 'plantuml' }).generate(solution);
-            const drawioDiagram = new ERDGenerator({ ...generatorConfig, format: 'drawio' }).generate(solution);
-            
-            setGeneratedDiagrams({
-                mermaid: mermaidDiagram,
-                plantuml: plantumlDiagram,
-                drawio: drawioDiagram
-            });
-            
-            if(isPPTB) {
-                await window.toolboxAPI.utils.showNotification({
-                    title: "Success",
-                    body: "ERD generated successfully",
-                    type: "success",
-                });
-            }
-        } catch (error: any) {
-            showError(`Failed to generate ERD: ${error.message}`);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleDownload = async () => {
-        const currentDiagram = generatedDiagrams[selectedFormat];
-        if (!currentDiagram) return;
-
-        const extensions: Record<string, string> = {
-            'mermaid': 'mmd',
-            'plantuml': 'puml',
-            'drawio': 'drawio'
-        };
-
-        const fileName = `${selectedSolution}-erd.${extensions[selectedFormat]}`;
-        
-        try {
-            if(isPPTB) {
-                const savedPath = await window.toolboxAPI.utils.saveFile(fileName, currentDiagram);
-                if (savedPath) {
-                    await window.toolboxAPI.utils.showNotification({
-                        title: "Success",
-                        body: "File saved successfully",
-                        type: "success",
-                    });
+                if (diff.renamedAttributeIds.has(attribute.id)) {
+                    renamedAttributes.push(`${table.logicalName}.${attribute.logicalName}`);
                 }
             }
-        } catch (error: any) {
-            showError(`Failed to save file: ${error.message}`);
         }
-    };
 
-    const handleCopyToClipboard = async () => {
-        const currentDiagram = generatedDiagrams[selectedFormat];
-        if (!currentDiagram) return;
+        const newRelationships = workingModel.relationships
+            .filter((relationship) => diff.newRelationshipIds.has(relationship.id))
+            .map((relationship) => `${tableName(relationship.fromTableId)} -> ${tableName(relationship.toTableId)} (${relationship.schemaName})`);
 
-        try {
-            if(isPPTB) {
-                await window.toolboxAPI.utils.copyToClipboard(currentDiagram);
-                await window.toolboxAPI.utils.showNotification({
-                    title: "Success",
-                    body: "Copied to clipboard",
-                    type: "success",
-                });
-            }
-        } catch (error: any) {
-            showError(`Failed to copy: ${error.message}`);
-        }
-    };
-
-    // Ensure mermaid is available and initialized (preload on mount)
-    useEffect(() => {
-        // Preload mermaid when component mounts to avoid CSS loading issues
-        const preloadMermaid = async () => {
-            try {
-                await ensureMermaid();
-                setMermaidReady(true);
-            } catch (error) {
-                console.error('Failed to preload mermaid:', error);
-            }
+        return {
+            newTables,
+            renamedTables,
+            newAttributes,
+            renamedAttributes,
+            newRelationships,
         };
-        preloadMermaid();
-    }, []);
+    }, [diff, workingModel]);
 
-    const ensureMermaid = async (): Promise<void> => {
-        if (window.mermaid) {
-            return;
-        }
-        const mod = await import('mermaid');
+    const ensureMermaid = useCallback(async (): Promise<void> => {
+        if (window.mermaid) return;
+        const mod = await import("mermaid");
         const mermaid = mod.default ?? (mod as any);
-        // Initialize once
         mermaid.initialize({
             startOnLoad: false,
-            theme: 'default',
+            theme: "default",
             themeVariables: {
-                primaryColor: '#0e639c',
-                primaryTextColor: '#fff',
-                primaryBorderColor: '#0a4f7c',
-                lineColor: '#0e639c',
-                secondaryColor: '#f3f4f6',
-                tertiaryColor: '#e5e7eb'
-            }
+                primaryColor: "#0e639c",
+                primaryTextColor: "#fff",
+                primaryBorderColor: "#0a4f7c",
+                lineColor: "#0e639c",
+                secondaryColor: "#f3f4f6",
+                tertiaryColor: "#e5e7eb",
+            },
         });
         (window as any).mermaid = mermaid;
-    };
+    }, []);
 
-    // Render the diagram (visual or text)
-    const renderDiagram = () => {
-        const currentDiagram = generatedDiagrams[selectedFormat];
-        if (!currentDiagram) return null;
-
-        if (viewMode === 'visual') {
-            if (selectedFormat === 'mermaid') {
-                // Show loading message if mermaid isn't ready yet
-                if (!mermaidReady) {
-                    return (
-                        <div className="loading-mermaid">
-                            Loading diagram renderer...
-                        </div>
-                    );
-                }
-
-                // Render Mermaid diagram: use 'mermaid' class and set text content for init()
-                return (
-                    <div
-                        className="mermaid"
-                        ref={(el) => {
-                            (async () => {
-                                if (!el) return;
-                                try {
-                                    // Remove stale processed flag so mermaid always re-renders
-                                    // when the same DOM element is reused across format switches
-                                    el.removeAttribute('data-processed');
-                                    // Set the diagram source as text content for Mermaid to parse
-                                    el.textContent = currentDiagram;
-                                    await ensureMermaid();
-                                    if (window.mermaid) {
-                                        await window.mermaid.init(undefined, el);
-                                    }
-                                } catch (error) {
-                                    console.error('Mermaid rendering error:', error);
-                                }
-                            })();
-                        }}
-                    />
-                );
-            } else if (selectedFormat === 'plantuml') {
-                // Render PlantUML using proper encoding and GET request
-                return (
-                    <div
-                        className="diagram-visual"
-                        ref={(el) => {
-                            (async () => {
-                                if (!el) return;
-                                try {
-                                    const encoded = plantumlEncoder.encode(currentDiagram);
-                                    
-                                    // Fetch SVG from PlantUML server using GET with encoded diagram
-                                    const url = `https://www.plantuml.com/plantuml/svg/${encoded}`;
-                                    const resp = await fetch(url);
-                                    if (!resp.ok) throw new Error(`PlantUML HTTP ${resp.status}`);
-                                    const svgText = await resp.text();
-
-                                    const parser = new DOMParser();
-                                    const doc = parser.parseFromString(svgText, 'image/svg+xml');
-                                    const svg = doc.querySelector('svg');
-                                    
-                                    if (!svg) {
-                                        console.error('PlantUML response:', svgText.substring(0, 500));
-                                        throw new Error('No <svg> in PlantUML response');
-                                    }
-
-                                    // Remove any script elements for safety
-                                    svg.querySelectorAll('script').forEach((s) => s.remove());
-                                    // Remove inline event attributes
-                                    svg.querySelectorAll('*').forEach((node) => {
-                                        Array.from(node.attributes).forEach((attr) => {
-                                            if (attr.name.toLowerCase().startsWith('on')) {
-                                                node.removeAttribute(attr.name);
-                                            }
-                                        });
-                                    });
-
-                                    el.innerHTML = '';
-                                    el.appendChild(svg);
-                                } catch (error) {
-                                    console.error('PlantUML rendering error:', error);
-                                    el.innerHTML = '<div class="loading-mermaid">Cannot render PlantUML. Error: ' + (error as Error).message + '. Switch to Text view.</div>';
-                                }
-                            })();
-                        }}
-                    />
-                );
-            } else if (selectedFormat === 'drawio') {
-                // Render Draw.io diagram using embedded viewer
-                return (
-                    <div
-                        className="diagram-visual"
-                        ref={(el) => {
-                            (async () => {
-                                if (!el) return;
-                                try {
-                                    // Encode the draw.io XML for embedding
-                                    const encodedDiagram = encodeURIComponent(currentDiagram);
-                                    
-                                    // Create an iframe with the draw.io viewer
-                                    const iframe = document.createElement('iframe');
-                                    iframe.style.width = '100%';
-                                    iframe.style.height = '600px';
-                                    iframe.style.border = '1px solid #ddd';
-                                    iframe.style.borderRadius = '4px';
-                                    
-                                    // Use draw.io embed viewer with the diagram
-                                    iframe.src = `https://viewer.diagrams.net/?highlight=0000ff&edit=_blank&layers=1&nav=1&title=ERD#R${encodedDiagram}`;
-                                    
-                                    el.innerHTML = '';
-                                    el.appendChild(iframe);
-                                } catch (error) {
-                                    console.error('Draw.io rendering error:', error);
-                                    el.innerHTML = '<div class="loading-mermaid">Cannot render Draw.io diagram. Switch to Text view to see the source.</div>';
-                                }
-                            })();
-                        }}
-                    />
-                );
-            } else if (selectedFormat === 'drawio') {
-                // Render Draw.io diagram using embedded viewer
-                return (
-                    <div
-                        className="diagram-visual"
-                        ref={(el) => {
-                            (async () => {
-                                if (!el) return;
-                                try {
-                                    // Encode the draw.io XML for embedding
-                                    const encodedDiagram = encodeURIComponent(currentDiagram);
-                                    
-                                    // Create an iframe with the draw.io viewer
-                                    const iframe = document.createElement('iframe');
-                                    iframe.style.width = '100%';
-                                    iframe.style.height = '600px';
-                                    iframe.style.border = '1px solid #ddd';
-                                    iframe.style.borderRadius = '4px';
-                                    
-                                    // Use draw.io embed viewer with the diagram
-                                    iframe.src = `https://viewer.diagrams.net/?highlight=0000ff&edit=_blank&layers=1&nav=1&title=ERD#R${encodedDiagram}`;
-                                    
-                                    el.innerHTML = '';
-                                    el.appendChild(iframe);
-                                } catch (error) {
-                                    console.error('Draw.io rendering error:', error);
-                                    el.innerHTML = '<div class="loading-mermaid">Cannot render Draw.io diagram. Switch to Text view to see the source.</div>';
-                                }
-                            })();
-                        }}
-                    />
-                );
+    const showError = useCallback(
+        (message: string) => {
+            setError(message);
+            setTimeout(() => setError(""), ERROR_DISPLAY_DURATION_MS);
+            if (isPPTB && window.toolboxAPI?.utils?.showNotification) {
+                void window.toolboxAPI.utils.showNotification({
+                    title: "Error",
+                    body: message,
+                    type: "error",
+                });
             }
-        }
+        },
+        [isPPTB],
+    );
 
-        // Fallback: show text view
-        return (
-            <pre className="diagram-text">
-                {currentDiagram}
-            </pre>
-        );
-    };
+    const {
+        relationshipNameSuggestion,
+        pushSnapshot,
+        handleLoadSolution,
+        handleUndo,
+        handleRedo,
+        handleAddTable,
+        handleRenameTable,
+        handleAddAttribute,
+        handleAddRelationship,
+        handlePublishRequest,
+        handlePublish,
+        fitGraphToView,
+        handleResetView,
+        handleAutoLayout,
+        handleDownload,
+        handleCopyToClipboard,
+        handleSaveSession,
+        handleLoadSession,
+        handleImportSession,
+        handleShareSessionFile,
+    } = useAppActions({
+        sessionShareVersion: SESSION_SHARE_VERSION,
+        isPPTB,
+        connectionUrl,
+        accessToken,
+        selectedSolution,
+        baselineModel,
+        workingModel,
+        diff,
+        positions,
+        historyPast,
+        historyFuture,
+        selectedTable,
+        selectedTableId,
+        selectedRelationshipTargetTable,
+        newTableLogicalName,
+        newTableDisplayName,
+        renameTableDisplayName,
+        newAttributeLogicalName,
+        newAttributeDisplayName,
+        newAttributeType,
+        relationshipName,
+        relationshipNameTouched,
+        relationshipTarget,
+        relationshipType,
+        changeCount,
+        generatedDiagrams,
+        selectedFormat,
+        exportSource,
+        exportChangedOnly,
+        exportMode,
+        visualExportType,
+        visualMode,
+        edgeType,
+        hideAttributes,
+        hideRelationshipNames,
+        showChangedOnlyInGraph,
+        showImpactMarkers,
+        includeAttributes,
+        includeRelationships,
+        maxAttributesPerTable,
+        reactFlowInstance,
+        savedSessionNames,
+        sessionNameInput,
+        selectedSessionName,
+        ensureMermaid,
+        showError,
+        setLoading,
+        setBaselineModel,
+        setWorkingModel,
+        setPositions,
+        setGraphBootTick,
+        setSelectedTableId,
+        setRelationshipTarget,
+        setRenameTableDisplayName,
+        setVisualMode,
+        setEdgeType,
+        setHideAttributes,
+        setHideRelationshipNames,
+        setShowChangedOnlyInGraph,
+        setShowImpactMarkers,
+        setIncludeAttributes,
+        setIncludeRelationships,
+        setMaxAttributesPerTable,
+        setExportSource,
+        setExportChangedOnly,
+        setNewTableLogicalName,
+        setNewTableDisplayName,
+        setNewAttributeLogicalName,
+        setNewAttributeDisplayName,
+        setRelationshipName,
+        setRelationshipNameTouched,
+        setPublishing,
+        setShowPublishConfirm,
+        setPublishResult,
+        setHistoryPast,
+        setHistoryFuture,
+        setSavedSessionNames,
+        setSelectedSessionName,
+        setSessionNameInput,
+        setSelectedSolution,
+    });
+
+    useSelectionSync({
+        workingModel,
+        selectedTable,
+        selectedTableId,
+        setSelectedTableId,
+        setRelationshipTarget,
+    });
+
+    useGraphBootAnimation(graphBootTick, setGraphEntryAnimating);
+
+    useVisualSync({
+        visualMode,
+        selectedFormat,
+        exportMode,
+        visualExportType,
+        availableVisualExportTypes,
+        setSelectedFormat,
+        setPreviewMode,
+        setExportMode,
+        setVisualExportType,
+    });
+
+    useTopbarDismiss(topbarRef, setOpenTopbarFlyout);
+
+    useEnvironmentInitialization({
+        setIsPPTB,
+        setLoading,
+        setConnectionUrl,
+        setAccessToken,
+        setError,
+    });
+
+    useSolutionsLoader({
+        connectionUrl,
+        accessToken,
+        isPPTB,
+        showError,
+        setSolutions,
+    });
+
+    useGeneratedDiagrams({
+        workingModel,
+        baselineModel,
+        includeAttributes,
+        includeRelationships,
+        maxAttributesPerTable,
+        exportSource,
+        exportChangedOnly,
+        positions,
+        sessionShareVersion: SESSION_SHARE_VERSION,
+        setGeneratedDiagrams,
+    });
+
+    useMermaidPreload(ensureMermaid, setMermaidReady);
+    useSessionLibraryInit(setSavedSessionNames, setSelectedSessionName);
+    useRelationshipNameSuggestionSync(relationshipNameSuggestion, relationshipNameTouched, relationshipName, setRelationshipName);
 
     if (loading) {
         return (
@@ -423,127 +408,162 @@ function App() {
 
     return (
         <div className="container">
-            {error && (
-                <div className="error">
-                    {error}
-                </div>
-            )}
+            {error && <div className="error-banner">{error}</div>}
 
-            <div className="main-content">
-                <div className="controls-panel">
-                    <div className="form-group">
-                        <label htmlFor="solutionSelect">Solution</label>
-                        <select 
-                            id="solutionSelect" 
-                            value={selectedSolution}
-                            onChange={(e) => setSelectedSolution(e.target.value)}
-                            disabled={solutions.length === 0}
-                        >
-                            <option value="">Select a solution</option>
-                            {solutions.map((solution) => (
-                                <option key={solution.uniqueName} value={solution.uniqueName}>
-                                    {solution.displayName} ({solution.version})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+            <AppTopbar
+                topbarRef={topbarRef}
+                solutions={solutions}
+                selectedSolution={selectedSolution}
+                loading={loading}
+                workingModel={!!workingModel}
+                visualMode={visualMode}
+                openTopbarFlyout={openTopbarFlyout}
+                edgeType={edgeType}
+                hideAttributes={hideAttributes}
+                hideRelationshipNames={hideRelationshipNames}
+                showChangedOnlyInGraph={showChangedOnlyInGraph}
+                showImpactMarkers={showImpactMarkers}
+                historyPastLength={historyPast.length}
+                historyFutureLength={historyFuture.length}
+                showExportPanel={showExportPanel}
+                sessionNameInput={sessionNameInput}
+                selectedSessionName={selectedSessionName}
+                savedSessionNames={savedSessionNames}
+                changeCount={changeCount}
+                publishing={publishing}
+                onSelectedSolutionChange={setSelectedSolution}
+                onLoadSolution={handleLoadSolution}
+                setOpenTopbarFlyout={setOpenTopbarFlyout}
+                onVisualModeChange={setVisualMode}
+                onEdgeTypeChange={setEdgeType}
+                onHideAttributesChange={setHideAttributes}
+                onHideRelationshipNamesChange={setHideRelationshipNames}
+                onFitGraphToView={fitGraphToView}
+                onResetView={handleResetView}
+                onAutoLayout={handleAutoLayout}
+                onShowChangedOnlyChange={setShowChangedOnlyInGraph}
+                onShowImpactMarkersChange={setShowImpactMarkers}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                onExportPanelToggle={() => setShowExportPanel((v) => !v)}
+                onSessionNameInputChange={setSessionNameInput}
+                onSelectedSessionNameChange={setSelectedSessionName}
+                onSaveSession={handleSaveSession}
+                onLoadSession={handleLoadSession}
+                onShareSessionFile={handleShareSessionFile}
+                onImportSessionClick={() => sessionFileInputRef.current?.click()}
+                onPublishRequest={handlePublishRequest}
+            />
 
-                    <div className="form-group">
-                        <label>Options</label>
-                        <div className="options-list">
-                            <label className="option-item">
-                                <input 
-                                    type="checkbox" 
-                                    checked={includeAttributes}
-                                    onChange={(e) => setIncludeAttributes(e.target.checked)}
-                                />
-                                <span>Include Attributes</span>
-                            </label>
-                            
-                            <label className="option-item">
-                                <input 
-                                    type="checkbox" 
-                                    checked={includeRelationships}
-                                    onChange={(e) => setIncludeRelationships(e.target.checked)}
-                                />
-                                <span>Include Relationships</span>
-                            </label>
-                            
-                            <div className="option-item">
-                                <label htmlFor="maxAttributesInput" className="inline-label">
-                                    Max Attributes:
-                                </label>
-                                <input 
-                                    type="number" 
-                                    id="maxAttributesInput"
-                                    value={maxAttributesPerTable}
-                                    onChange={(e) => setMaxAttributesPerTable(parseInt(e.target.value) || 0)}
-                                    min="0" 
-                                    max="100"
-                                    className="number-input"
-                                />
-                            </div>
+            {/* ── WORKSPACE ────────────────────────────────────────────── */}
+            <div className="workspace">
+                <div className="workspace-canvas">
+                    {visualMode === "flow" ? (
+                        workingModel ? (
+                            <GraphCanvas
+                                workingModel={workingModel}
+                                diff={diff}
+                                positions={positions}
+                                selectedTableId={selectedTableId}
+                                visibleTableIds={visibleTableIds}
+                                includeRelationships={includeRelationships}
+                                hideRelationshipNames={hideRelationshipNames}
+                                edgeType={edgeType}
+                                showImpactMarkers={showImpactMarkers}
+                                hideAttributes={hideAttributes}
+                                graphEntryAnimating={graphEntryAnimating}
+                                onReactFlowInit={setReactFlowInstance}
+                                onTableSelect={(tableId, displayName) => {
+                                    setSelectedTableId(tableId);
+                                    setRenameTableDisplayName(displayName);
+                                }}
+                                onPushSnapshot={() => pushSnapshot(workingModel, positions)}
+                                onPositionChange={(tableId, x, y) => {
+                                    setPositions((prev) => ({
+                                        ...prev,
+                                        [tableId]: { x, y },
+                                    }));
+                                }}
+                            />
+                        ) : (
+                            <div className="loading-mermaid">Load a solution to start graph editing.</div>
+                        )
+                    ) : (
+                        <div className="preview-container">
+                            <DiagramPreview format={visualMode} previewMode={previewMode} diagram={generatedDiagrams[visualMode]} mermaidReady={mermaidReady} ensureMermaid={ensureMermaid} />
                         </div>
-                    </div>
+                    )}
 
-                    <button 
-                        className="btn btn-primary" 
-                        onClick={handleGenerateERD}
-                        disabled={!selectedSolution || loading}
-                    >
-                        Generate ERD
-                    </button>
-
-                    <div className="form-group">
-                        <label>Format</label>
-                        <div className="format-selector">
-                            <button 
-                                className={`format-btn ${selectedFormat === 'mermaid' ? 'active' : ''}`}
-                                onClick={() => setSelectedFormat('mermaid')}
-                            >
-                                Mermaid
-                            </button>
-                            <button 
-                                className={`format-btn ${selectedFormat === 'plantuml' ? 'active' : ''}`}
-                                onClick={() => setSelectedFormat('plantuml')}
-                            >
-                                PlantUML
-                            </button>
-                            <button 
-                                className={`format-btn ${selectedFormat === 'drawio' ? 'active' : ''}`}
-                                onClick={() => setSelectedFormat('drawio')}
-                            >
-                                Draw.io
-                            </button>
-                        </div>
-                    </div>
-
-                    {generatedDiagrams[selectedFormat] && (
-                        <div className="action-buttons">
-                            <button 
-                                className="btn btn-secondary"
-                                onClick={() => setViewMode(viewMode === 'visual' ? 'text' : 'visual')}
-                            >
-                                {viewMode === 'visual' ? '📝 Text' : '🎨 Visual'}
-                            </button>
-                            <button className="btn btn-secondary" onClick={handleDownload}>
-                                📥 Download
-                            </button>
-                            <button className="btn btn-secondary" onClick={handleCopyToClipboard}>
-                                📋 Copy
-                            </button>
-                        </div>
+                    {workingModel && visualMode === "flow" && (
+                        <CanvasActionDock
+                            workingModel={workingModel}
+                            publisherPrefixWithUnderscore={publisherPrefixWithUnderscore}
+                            selectedTable={selectedTable}
+                            showCanvasActionPanel={showCanvasActionPanel}
+                            canvasActionTab={canvasActionTab}
+                            newTableLogicalName={newTableLogicalName}
+                            newTableDisplayName={newTableDisplayName}
+                            renameTableDisplayName={renameTableDisplayName}
+                            newAttributeLogicalName={newAttributeLogicalName}
+                            newAttributeDisplayName={newAttributeDisplayName}
+                            newAttributeType={newAttributeType}
+                            relationshipName={relationshipName}
+                            relationshipTarget={relationshipTarget}
+                            relationshipType={relationshipType}
+                            onTogglePanel={() => setShowCanvasActionPanel((open) => !open)}
+                            onCanvasActionTabChange={setCanvasActionTab}
+                            onNewTableLogicalNameChange={setNewTableLogicalName}
+                            onNewTableDisplayNameChange={setNewTableDisplayName}
+                            onRenameTableDisplayNameChange={setRenameTableDisplayName}
+                            onNewAttributeLogicalNameChange={setNewAttributeLogicalName}
+                            onNewAttributeDisplayNameChange={setNewAttributeDisplayName}
+                            onNewAttributeTypeChange={setNewAttributeType}
+                            onRelationshipNameChange={(value) => {
+                                setRelationshipName(value);
+                                setRelationshipNameTouched(true);
+                            }}
+                            onRelationshipTargetChange={setRelationshipTarget}
+                            onRelationshipTypeChange={setRelationshipType}
+                            onAddTable={handleAddTable}
+                            onRenameTable={handleRenameTable}
+                            onAddAttribute={handleAddAttribute}
+                            onAddRelationship={handleAddRelationship}
+                        />
                     )}
                 </div>
 
-                {generatedDiagrams[selectedFormat] && (
-                    <div className="diagram-panel">
-                        <div className="diagram-container">
-                            {renderDiagram()}
-                        </div>
-                    </div>
-                )}
+                <ExportPanel
+                    showExportPanel={showExportPanel}
+                    workingModelExists={!!workingModel}
+                    selectedFormat={selectedFormat}
+                    exportSource={exportSource}
+                    exportChangedOnly={exportChangedOnly}
+                    exportMode={exportMode}
+                    visualExportType={visualExportType}
+                    includeAttributes={includeAttributes}
+                    includeRelationships={includeRelationships}
+                    maxAttributesPerTable={maxAttributesPerTable}
+                    availableVisualExportTypes={availableVisualExportTypes}
+                    onClose={() => setShowExportPanel(false)}
+                    onExportSourceChange={setExportSource}
+                    onExportChangedOnlyChange={setExportChangedOnly}
+                    onSelectedFormatChange={setSelectedFormat}
+                    onExportModeChange={setExportMode}
+                    onVisualExportTypeChange={setVisualExportType}
+                    onIncludeAttributesChange={setIncludeAttributes}
+                    onIncludeRelationshipsChange={setIncludeRelationships}
+                    onMaxAttributesPerTableChange={setMaxAttributesPerTable}
+                    onDownload={handleDownload}
+                    onCopy={handleCopyToClipboard}
+                />
             </div>
+
+            {/* ── MODALS ──────────────────────────────────────────────── */}
+            <input ref={sessionFileInputRef} type="file" accept=".json,.flow,.flow.json" style={{ display: "none" }} onChange={handleImportSession} />
+
+            {showPublishConfirm && <PublishConfirmModal changeCount={changeCount} publishReview={publishReview} onCancel={() => setShowPublishConfirm(false)} onConfirmPublish={handlePublish} />}
+
+            {publishResult && <PublishResultModal publishResult={publishResult} onClose={() => setPublishResult(null)} />}
         </div>
     );
 }

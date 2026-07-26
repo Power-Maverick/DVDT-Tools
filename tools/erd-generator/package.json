@@ -1,8 +1,8 @@
 {
   "name": "@power-maverick/tool-erd-generator",
   "displayName": "ERD Generator",
-  "version": "1.1.5",
-  "description": "Generate Entity Relationship Diagrams (ERD) for Dataverse solutions",
+  "version": "1.1.6",
+  "description": "Graph-first Dataverse ERD editor with in-memory schema diffs, session sharing, and multi-format export",
   "icon": "icons/erdGenerator.svg",
   "contributors": [
     {
@@ -25,9 +25,10 @@
   },
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "npm run typecheck && vite build",
     "dev": "vite",
     "preview": "vite preview",
+    "typecheck": "tsc -b",
     "finalize-package": "npm shrinkwrap",
     "version-stable": "npm version patch --no-git-tag-version",
     "publish-package": "npm run build && npm run version-stable && npm publish --access public"
@@ -47,7 +48,9 @@
   "author": "Power Maverick",
   "dependencies": {
     "@types/plantuml-encoder": "^1.4.2",
+    "@xyflow/react": "^12.11.2",
     "axios": "^1.7.9",
+    "html-to-image": "^1.11.13",
     "mermaid": "^11.4.1",
     "plantuml-encoder": "^1.4.0",
     "react": "^18.3.1",
