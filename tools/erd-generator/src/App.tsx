@@ -43,7 +43,20 @@ type OutputFormat = 'mermaid' | 'plantuml' | 'drawio';
 
 type ViewMode = 'interactive' | 'preview';
 
-const RESERVED_NAMES = new Set(['entity', 'table', 'attribute', 'relationship', 'select', 'from', 'where']);
+const ERROR_DISPLAY_DURATION_MS = 7000;
+const IMPACT_MEDIUM_ATTRIBUTE_THRESHOLD = 8;
+const IMPACT_HIGH_ATTRIBUTE_THRESHOLD = 18;
+const GRAPH_NODE_MAX_VISIBLE_ATTRIBUTES = 9;
+const RESERVED_NAMES = new Set([
+    'entity', 'table', 'attribute', 'relationship', 'select', 'from', 'where',
+    'insert', 'update', 'delete', 'order', 'group', 'join', 'inner', 'outer',
+    'create', 'drop', 'alter', 'having', 'distinct', 'union', 'truncate',
+]);
+const getImpactLevel = (attributeCount: number): 'low' | 'medium' | 'high' => {
+    if (attributeCount > IMPACT_HIGH_ATTRIBUTE_THRESHOLD) return 'high';
+    if (attributeCount > IMPACT_MEDIUM_ATTRIBUTE_THRESHOLD) return 'medium';
+    return 'low';
+};
 
 function App() {
     const [isPPTB, setIsPPTB] = useState<boolean>(false);
@@ -88,6 +101,7 @@ function App() {
     const [relationshipType, setRelationshipType] = useState<'OneToMany' | 'ManyToOne' | 'ManyToMany'>('ManyToOne');
 
     const [publishing, setPublishing] = useState<boolean>(false);
+    const [showPublishConfirm, setShowPublishConfirm] = useState<boolean>(false);
     const [publishResult, setPublishResult] = useState<{ success: boolean; lines: string[] } | null>(null);
 
     const [generatedDiagrams, setGeneratedDiagrams] = useState<Record<OutputFormat, string>>({
@@ -300,7 +314,7 @@ function App() {
 
     const showError = (message: string) => {
         setError(message);
-        setTimeout(() => setError(''), 7000);
+        setTimeout(() => setError(''), ERROR_DISPLAY_DURATION_MS);
     };
 
     const pushSnapshot = (model: ERDEditorModel, nextPositions: GraphPositions) => {
@@ -519,6 +533,7 @@ function App() {
             return;
         }
 
+        // Deliberate editor UX constraint: self-links for 1:N and N:1 are hidden to avoid overlapping edge UX.
         if (relationshipTarget === selectedTable.id && relationshipType !== 'ManyToMany') {
             showError('Self-relationship is allowed only for Many-to-Many in this editor.');
             return;
@@ -543,29 +558,32 @@ function App() {
         }
 
         const nextModel = cloneModel(workingModel);
+        const targetTable = nextModel.tables.find((table) => table.id === relationshipTarget);
         nextModel.relationships.push({
             id: makeId('rel'),
             schemaName,
             type: relationshipType,
             fromTableId: selectedTable.id,
             toTableId: relationshipTarget,
-            lookupAttribute: relationshipType === 'ManyToMany' ? undefined : `${selectedTable.logicalName}id`,
+            lookupAttribute: relationshipType === 'ManyToMany' ? undefined : targetTable?.primaryIdAttribute || `${selectedTable.logicalName}id`,
             intersectTable: relationshipType === 'ManyToMany' ? `${selectedTable.logicalName}_${schemaName}` : undefined,
         });
         applyModelChange(nextModel);
         setRelationshipName('');
     };
 
-    const handlePublish = async () => {
-        if (!workingModel || !baselineModel || !diff) return;
+    const handlePublishRequest = () => {
         if (changeCount === 0) {
             showError('No changes to publish.');
             return;
         }
+        setShowPublishConfirm(true);
+    };
 
-        const confirmed = window.confirm(`Publish ${changeCount} change(s) to Dataverse now?`);
-        if (!confirmed) return;
+    const handlePublish = async () => {
+        if (!workingModel || !baselineModel || !diff) return;
 
+        setShowPublishConfirm(false);
         setPublishing(true);
         setPublishResult(null);
 
@@ -835,7 +853,7 @@ function App() {
                         const hasAttributeChanges = table.attributes.some(
                             (attribute) => !!diff && (diff.newAttributeIds.has(attribute.id) || diff.renamedAttributeIds.has(attribute.id)),
                         );
-                        const impact = hasAttributeChanges || isNewTable || isRenamed ? (table.attributes.length > 18 ? 'high' : table.attributes.length > 8 ? 'medium' : 'low') : 'none';
+                        const impact = hasAttributeChanges || isNewTable || isRenamed ? getImpactLevel(table.attributes.length) : 'none';
 
                         return (
                             <div
@@ -870,7 +888,7 @@ function App() {
                                     </div>
                                 </div>
                                 <div className="graph-node-attrs">
-                                    {table.attributes.slice(0, 9).map((attribute) => {
+                                    {table.attributes.slice(0, GRAPH_NODE_MAX_VISIBLE_ATTRIBUTES).map((attribute) => {
                                         const attrNew = !!diff?.newAttributeIds.has(attribute.id);
                                         const attrRenamed = !!diff?.renamedAttributeIds.has(attribute.id);
                                         return (
@@ -880,7 +898,9 @@ function App() {
                                             </div>
                                         );
                                     })}
-                                    {table.attributes.length > 9 && <div className="graph-attr-more">+{table.attributes.length - 9} more</div>}
+                                    {table.attributes.length > GRAPH_NODE_MAX_VISIBLE_ATTRIBUTES && (
+                                        <div className="graph-attr-more">+{table.attributes.length - GRAPH_NODE_MAX_VISIBLE_ATTRIBUTES} more</div>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -954,7 +974,7 @@ function App() {
                                     <button className="btn btn-secondary" onClick={handleRedo} disabled={historyFuture.length === 0}>
                                         Redo
                                     </button>
-                                    <button className="btn btn-secondary" onClick={handlePublish} disabled={publishing || changeCount === 0}>
+                                    <button className="btn btn-secondary" onClick={handlePublishRequest} disabled={publishing || changeCount === 0}>
                                         {publishing ? 'Publishing...' : 'Publish to Dataverse'}
                                     </button>
                                 </div>
@@ -1115,7 +1135,12 @@ function App() {
                                         min="0"
                                         max="100"
                                         value={maxAttributesPerTable}
-                                        onChange={(event) => setMaxAttributesPerTable(parseInt(event.target.value, 10) || 0)}
+                                        onChange={(event) => {
+                                            const parsed = Number.parseInt(event.target.value, 10);
+                                            if (!Number.isNaN(parsed) && parsed >= 0) {
+                                                setMaxAttributesPerTable(parsed);
+                                            }
+                                        }}
                                         className="number-input"
                                     />
                                 </div>
@@ -1149,6 +1174,23 @@ function App() {
                     </div>
                 </div>
             </div>
+
+            {showPublishConfirm && (
+                <div className="modal-overlay">
+                    <div className="modal-card">
+                        <h3>Publish changes</h3>
+                        <p>Publish {changeCount} change(s) to Dataverse now?</p>
+                        <div className="panel-row">
+                            <button className="btn btn-secondary" onClick={() => setShowPublishConfirm(false)}>
+                                Cancel
+                            </button>
+                            <button className="btn btn-primary" onClick={handlePublish}>
+                                Confirm Publish
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

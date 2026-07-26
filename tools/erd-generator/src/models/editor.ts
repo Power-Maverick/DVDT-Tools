@@ -65,7 +65,13 @@ export interface PublishSummary {
   results: PublishOperationResult[];
 }
 
-export const makeId = (prefix: string): string => `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`;
+export const makeId = (prefix: string): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+  const random = Array.from({ length: 16 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
+  return `${prefix}_${random}_${Date.now()}`;
+};
 
 export const toEditorModel = (solution: DataverseSolution): ERDEditorModel => {
   const tables = solution.tables.map((table) => ({
@@ -123,7 +129,7 @@ export const toEditorModel = (solution: DataverseSolution): ERDEditorModel => {
     solutionUniqueName: solution.uniqueName,
     solutionDisplayName: solution.displayName,
     solutionVersion: solution.version,
-    publisherPrefix: solution.publisherPrefix,
+    publisherPrefix: solution.publisherPrefix?.trim() || 'unknown',
     tables,
     relationships,
   };

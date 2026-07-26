@@ -3,6 +3,20 @@ import { ERDEditorModel, ModelDiff, PublishSummary } from '../models/editor';
 import { DataverseAttribute, DataverseRelationship, DataverseSolution, DataverseTable } from '../models/interfaces';
 import { Helper } from './Helper';
 
+const INT32_MIN = -2147483648;
+const INT32_MAX = 2147483647;
+const DECIMAL_DEFAULT_MIN = -1000000000;
+const DECIMAL_DEFAULT_MAX = 1000000000;
+
+const escapeODataString = (value: string): string => value.replace(/'/g, "''");
+const toLogicalNameLiteral = (value: string): string => {
+  const trimmed = value.trim();
+  if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+    throw new Error(`Invalid logical name '${value}' for OData metadata path.`);
+  }
+  return escapeODataString(trimmed);
+};
+
 export interface DataverseConfig {
   environmentUrl: string;
   accessToken?: string;
@@ -23,7 +37,7 @@ export class DataverseClient {
     this.axiosInstance = axios.create({
       baseURL: `${this.environmentUrl}/api/data/v${this.apiVersion}`,
       headers: {
-        Authorization: config.accessToken ? ['Bearer', config.accessToken].join(' ') : '',
+        Authorization: config.accessToken ? 'Bearer '.concat(config.accessToken) : '',
         Accept: 'application/json',
         'Content-Type': 'application/json',
         'OData-MaxVersion': '4.0',
@@ -46,7 +60,7 @@ export class DataverseClient {
       }
 
       const solutionData = responseSolution[0];
-      const publisherPrefix = solutionData.publisherid?.customizationprefix ?? 'new';
+      const publisherPrefix = solutionData.publisherid?.customizationprefix ?? 'unknown';
 
       const responseComponent = await helper.getOData(
         `solutioncomponents?$filter=_solutionid_value eq ${solutionData.solutionid} and componenttype eq 1&$select=objectid`,
@@ -268,23 +282,27 @@ export class DataverseClient {
       await executeStep(`Rename table ${tableId}`, async () => {
         const table = tableById.get(tableId);
         if (!table) return;
+        const safeTableName = toLogicalNameLiteral(table.logicalName);
 
-        await helper.patchOData(`EntityDefinitions(LogicalName='${table.logicalName}')`, { DisplayName: label(table.displayName) }, this.isPPTB);
+        await helper.patchOData(`EntityDefinitions(LogicalName='${safeTableName}')`, { DisplayName: label(table.displayName) }, this.isPPTB);
       });
     }
 
     for (const table of working.tables) {
       for (const attribute of table.attributes.filter((attr) => diff.newAttributeIds.has(attr.id))) {
         await executeStep(`Add attribute ${table.logicalName}.${attribute.logicalName}`, async () => {
+          const safeLogicalName = toLogicalNameLiteral(table.logicalName);
           const payload = this.buildAttributePayload(attribute.logicalName, attribute.displayName, attribute.type, attribute.isRequired);
-          await helper.postOData(`EntityDefinitions(LogicalName='${table.logicalName}')/Attributes`, payload, this.isPPTB);
+          await helper.postOData(`EntityDefinitions(LogicalName='${safeLogicalName}')/Attributes`, payload, this.isPPTB);
         });
       }
 
       for (const attribute of table.attributes.filter((attr) => diff.renamedAttributeIds.has(attr.id))) {
         await executeStep(`Rename attribute ${table.logicalName}.${attribute.logicalName}`, async () => {
+          const safeTableName = toLogicalNameLiteral(table.logicalName);
+          const safeAttributeName = toLogicalNameLiteral(attribute.logicalName);
           await helper.patchOData(
-            `EntityDefinitions(LogicalName='${table.logicalName}')/Attributes(LogicalName='${attribute.logicalName}')`,
+            `EntityDefinitions(LogicalName='${safeTableName}')/Attributes(LogicalName='${safeAttributeName}')`,
             { DisplayName: label(attribute.displayName) },
             this.isPPTB,
           );
@@ -350,16 +368,16 @@ export class DataverseClient {
         return {
           '@odata.type': 'Microsoft.Dynamics.CRM.IntegerAttributeMetadata',
           ...base,
-          MinValue: -2147483648,
-          MaxValue: 2147483647,
+          MinValue: INT32_MIN,
+          MaxValue: INT32_MAX,
         };
       case 'decimal':
       case 'money':
         return {
           '@odata.type': 'Microsoft.Dynamics.CRM.DecimalAttributeMetadata',
           ...base,
-          MinValue: -1000000000,
-          MaxValue: 1000000000,
+          MinValue: DECIMAL_DEFAULT_MIN,
+          MaxValue: DECIMAL_DEFAULT_MAX,
           Precision: 2,
         };
       case 'datetime':
