@@ -254,9 +254,6 @@ function App() {
         };
 
         const onMouseUp = () => {
-            if (draggingNode && workingModel) {
-                pushSnapshot(cloneModel(workingModel), positions);
-            }
             setDraggingNode(null);
             setPanning(null);
         };
@@ -849,6 +846,9 @@ function App() {
                                     event.stopPropagation();
                                     setSelectedTableId(table.id);
                                     setRenameTableDisplayName(table.displayName);
+                                    if (workingModel) {
+                                        pushSnapshot(workingModel, positions);
+                                    }
                                     setDraggingNode({
                                         tableId: table.id,
                                         startMouseX: event.clientX,
