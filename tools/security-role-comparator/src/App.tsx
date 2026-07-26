@@ -1,7 +1,6 @@
 import { Button, Dropdown, MessageBar, MessageBarBody, Option, SearchBox, Spinner, Tooltip } from "@fluentui/react-components";
 import {
     AddCircleFilled,
-    ArrowSyncRegular,
     DismissCircleRegular,
     OrganizationRegular,
     PeopleRegular,
@@ -92,6 +91,11 @@ interface SavedSelections {
     compareRoleIds: string[];
 }
 
+interface RoleSelections {
+    baseRoleId: string;
+    compareRoleIds: string[];
+}
+
 function buildStorageKey(envUrl: string): string {
     try {
         return `${STORAGE_PREFIX}:${new URL(envUrl).origin}`;
@@ -171,6 +175,7 @@ export default function App() {
     const [comparing, setComparing] = useState(false);
     const [comparisonData, setComparisonData] = useState<ParsedPrivilege[]>([]);
     const [comparedRoleIds, setComparedRoleIds] = useState<string[]>([]);
+    const [hasComparedOnce, setHasComparedOnce] = useState(false);
     const [error, setError] = useState<string>("");
     const [searchTerm, setSearchTerm] = useState("");
     const [diffFilter, setDiffFilter] = useState<DiffFilter>("differences");
@@ -194,17 +199,24 @@ export default function App() {
         });
     }, [baseRoleId, compareRoleIds]);
 
-    const applySelectionDefaults = (availableRoles: SecurityRole[], savedSelections: SavedSelections | null) => {
+    const getSelectionDefaults = (availableRoles: SecurityRole[], savedSelections: SavedSelections | null): RoleSelections => {
         const validRoleIds = new Set(availableRoles.map((role) => role.roleid));
 
         const baseId = savedSelections?.baseRoleId && validRoleIds.has(savedSelections.baseRoleId) ? savedSelections.baseRoleId : "";
         const compareIds = savedSelections ? normalizeSelections(savedSelections.compareRoleIds, validRoleIds, new Set(baseId ? [baseId] : [])) : [];
 
-        setBaseRoleId(baseId);
-        setCompareRoleIds(compareIds.length > 0 ? compareIds : [""]);
+        return {
+            baseRoleId: baseId,
+            compareRoleIds: compareIds.length > 0 ? compareIds : [""],
+        };
     };
 
-    const loadEnvironment = async () => {
+    const applySelectionDefaults = ({ baseRoleId: nextBaseRoleId, compareRoleIds: nextCompareRoleIds }: RoleSelections) => {
+        setBaseRoleId(nextBaseRoleId);
+        setCompareRoleIds(nextCompareRoleIds);
+    };
+
+    const loadEnvironment = async (): Promise<RoleSelections | null> => {
         setLoadingEnvironment(true);
         setError("");
 
@@ -219,7 +231,9 @@ export default function App() {
             const savedSelections = readSavedSelections(storageKeyRef.current);
             const fetchedRoles = await connectorRef.current.fetchRoles();
             setRoles(fetchedRoles);
-            applySelectionDefaults(fetchedRoles, savedSelections);
+
+            const resolvedSelections = getSelectionDefaults(fetchedRoles, savedSelections);
+            applySelectionDefaults(resolvedSelections);
 
             setComparisonData([]);
             setComparedRoleIds([]);
@@ -228,12 +242,29 @@ export default function App() {
             if (!fetchedRoles.length) {
                 setError("No security roles were found in the connected environment.");
             }
+
+            return resolvedSelections;
         } catch (err: any) {
             setError(err.message || "Failed to load security roles");
+            return null;
         } finally {
             setLoadingEnvironment(false);
             setLoadingRoles(false);
         }
+    };
+
+    const runRefreshAndComparison = async () => {
+        const refreshedSelections = await loadEnvironment();
+        if (!refreshedSelections) return;
+        await runComparisonWith(refreshedSelections.baseRoleId, refreshedSelections.compareRoleIds);
+    };
+
+    const runPrimaryAction = async () => {
+        if (hasComparedOnce) {
+            await runRefreshAndComparison();
+            return;
+        }
+        await runComparison();
     };
 
     const addCompareSlot = () => {
@@ -265,6 +296,7 @@ export default function App() {
             const data = await connectorRef.current.buildComparisonData(allIds);
             setComparisonData(data);
             setComparedRoleIds(allIds);
+            setHasComparedOnce(true);
         } catch (err: any) {
             setError(err.message || "Comparison failed");
             await DataverseConnector.showMessage("Error", err.message || "Comparison failed", "error");
@@ -411,6 +443,7 @@ export default function App() {
 
     const columnCount = 2 + comparedRoleIds.length + (showCombined ? 1 : 0);
     const hasResults = comparisonData.length > 0;
+    const actionLabel = hasComparedOnce ? "Refresh" : "Compare";
 
 
     return (
@@ -504,11 +537,15 @@ export default function App() {
                         {loadingEnvironment || loadingRoles ? (
                             <Spinner size="tiny" label="Loading selections…" labelPosition="after" />
                         ) : (
-                            <Button appearance="subtle" icon={<ArrowSyncRegular />} onClick={() => void loadEnvironment()} title="Refresh selections" size="small" />
+                            <Button
+                                appearance="primary"
+                                onClick={() => void runPrimaryAction()}
+                                disabled={!canCompare || comparing || loadingEnvironment || loadingRoles}
+                                size="medium"
+                            >
+                                {comparing ? <Spinner size="tiny" /> : actionLabel}
+                            </Button>
                         )}
-                        <Button appearance="primary" onClick={runComparison} disabled={!canCompare || comparing || loadingEnvironment || loadingRoles} size="medium">
-                            {comparing ? <Spinner size="tiny" /> : "Compare"}
-                        </Button>
                     </div>
                 </div>
             </div>
@@ -698,7 +735,7 @@ export default function App() {
             {!hasResults && !comparing && !loadingRoles && !loadingEnvironment && !error && (
                 <div className="empty-state">
                     <p>
-                        Choose a base role and one or more comparison roles, then click <strong>Compare</strong>.
+                        Choose a base role and one or more comparison roles, then click <strong>{actionLabel}</strong>.
                     </p>
                 </div>
             )}
