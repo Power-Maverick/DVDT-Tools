@@ -104,6 +104,10 @@ function App() {
     const [showPublishConfirm, setShowPublishConfirm] = useState<boolean>(false);
     const [publishResult, setPublishResult] = useState<{ success: boolean; lines: string[] } | null>(null);
 
+    const [showAddTableModal, setShowAddTableModal] = useState<boolean>(false);
+    const [nodeEditorTab, setNodeEditorTab] = useState<'info' | 'add-attr' | 'rename-attrs' | 'add-rel'>('info');
+    const [showExportPanel, setShowExportPanel] = useState<boolean>(false);
+
     const [generatedDiagrams, setGeneratedDiagrams] = useState<Record<OutputFormat, string>>({
         mermaid: '',
         plantuml: '',
@@ -162,7 +166,8 @@ function App() {
             drafts[attribute.id] = attribute.displayName;
         }
         setAttributeRenameDrafts(drafts);
-    }, [selectedTable]);
+        setNodeEditorTab('info');
+    }, [selectedTable?.id]);
 
     useEffect(() => {
         const initializeEnvironment = async () => {
@@ -455,6 +460,7 @@ function App() {
         setNewTableLogicalName('');
         setNewTableDisplayName('');
         setSelectedTableId(tableId);
+        setShowAddTableModal(false);
     };
 
     const handleRenameTable = () => {
@@ -941,192 +947,163 @@ function App() {
 
     return (
         <div className="container">
-            {error && <div className="error">{error}</div>}
+            {error && <div className="error-banner">{error}</div>}
 
-            <div className="main-content">
-                <div className="controls-panel">
-                    <div className="form-group">
-                        <label htmlFor="solutionSelect">Solution</label>
-                        <select id="solutionSelect" value={selectedSolution} onChange={(event) => setSelectedSolution(event.target.value)} disabled={solutions.length === 0}>
-                            <option value="">Select a solution</option>
-                            {solutions.map((solution) => (
-                                <option key={solution.uniqueName} value={solution.uniqueName}>
-                                    {solution.displayName} ({solution.version})
-                                </option>
-                            ))}
-                        </select>
-                        <button className="btn btn-primary" onClick={handleLoadSolution} disabled={!selectedSolution || loading}>
-                            Load Interactive ERD
+            {/* ── TOP BAR ─────────────────────────────────────────────── */}
+            <header className="topbar">
+                <span className="topbar-brand">ERD Generator</span>
+
+                <div className="topbar-section">
+                    <select
+                        className="topbar-select"
+                        value={selectedSolution}
+                        onChange={(event) => setSelectedSolution(event.target.value)}
+                        disabled={solutions.length === 0}
+                    >
+                        <option value="">Select solution…</option>
+                        {solutions.map((solution) => (
+                            <option key={solution.uniqueName} value={solution.uniqueName}>
+                                {solution.displayName} ({solution.version})
+                            </option>
+                        ))}
+                    </select>
+                    <button
+                        className="btn btn-primary topbar-load-btn"
+                        onClick={handleLoadSolution}
+                        disabled={!selectedSolution || loading}
+                    >
+                        Load ERD
+                    </button>
+                </div>
+
+                {workingModel && (
+                    <>
+                        <div className="topbar-divider" />
+                        <div className="topbar-section">
+                            <button className="btn btn-tool" onClick={fitGraphToView} title="Fit graph to view">Fit</button>
+                            <button className="btn btn-tool" onClick={handleResetView} title="Reset view">Reset</button>
+                            <button className="btn btn-tool" onClick={handleAutoLayout} title="Auto-layout nodes">Auto-layout</button>
+                        </div>
+
+                        <div className="topbar-divider" />
+                        <div className="topbar-section">
+                            <label className="topbar-toggle">
+                                <input type="checkbox" checked={showChangedOnlyInGraph} onChange={(event) => setShowChangedOnlyInGraph(event.target.checked)} />
+                                <span>Changed only</span>
+                            </label>
+                            <label className="topbar-toggle">
+                                <input type="checkbox" checked={showImpactMarkers} onChange={(event) => setShowImpactMarkers(event.target.checked)} />
+                                <span>Impact</span>
+                            </label>
+                        </div>
+
+                        <div className="topbar-divider" />
+                        <div className="topbar-section">
+                            <button className="btn btn-tool" onClick={handleUndo} disabled={historyPast.length === 0} title="Undo">↩ Undo</button>
+                            <button className="btn btn-tool" onClick={handleRedo} disabled={historyFuture.length === 0} title="Redo">Redo ↪</button>
+                        </div>
+                    </>
+                )}
+
+                <div className="topbar-spacer" />
+
+                {workingModel && (
+                    <div className="topbar-section">
+                        <span className={`change-pill ${changeCount > 0 ? 'has-changes' : ''}`}>
+                            {changeCount} {changeCount === 1 ? 'change' : 'changes'}
+                        </span>
+                        <button className="btn btn-publish" onClick={handlePublishRequest} disabled={publishing || changeCount === 0}>
+                            {publishing ? 'Publishing…' : '↑ Publish'}
                         </button>
                     </div>
+                )}
 
-                    {workingModel && (
-                        <>
-                            <div className="form-group card-panel">
-                                <div className="panel-row">
-                                    <strong>Unsaved changes</strong>
-                                    <span className={`change-pill ${changeCount > 0 ? 'has-changes' : ''}`}>{changeCount}</span>
-                                </div>
-                                <div className="panel-row">
-                                    <button className="btn btn-secondary" onClick={handleUndo} disabled={historyPast.length === 0}>
-                                        Undo
-                                    </button>
-                                    <button className="btn btn-secondary" onClick={handleRedo} disabled={historyFuture.length === 0}>
-                                        Redo
-                                    </button>
-                                    <button className="btn btn-secondary" onClick={handlePublishRequest} disabled={publishing || changeCount === 0}>
-                                        {publishing ? 'Publishing...' : 'Publish to Dataverse'}
-                                    </button>
-                                </div>
-                                {publishResult && (
-                                    <div className={`publish-result ${publishResult.success ? 'is-success' : 'is-error'}`}>
-                                        {publishResult.lines.map((line, index) => (
-                                            <div key={`${line}-${index}`}>{line}</div>
-                                        ))}
-                                        {!publishResult.success && <div className="muted-text">Some operations failed. Review errors and re-run publish.</div>}
-                                    </div>
-                                )}
-                            </div>
+                <div className="topbar-divider" />
 
-                            <div className="form-group card-panel">
-                                <label>Graph controls</label>
-                                <div className="panel-row">
-                                    <button className="btn btn-secondary" onClick={fitGraphToView}>Fit</button>
-                                    <button className="btn btn-secondary" onClick={handleResetView}>Reset</button>
-                                    <button className="btn btn-secondary" onClick={handleAutoLayout}>Auto-layout</button>
-                                </div>
-                                <label className="option-item">
-                                    <input type="checkbox" checked={showChangedOnlyInGraph} onChange={(event) => setShowChangedOnlyInGraph(event.target.checked)} />
-                                    <span>Show changed only</span>
-                                </label>
-                                <label className="option-item">
-                                    <input type="checkbox" checked={showImpactMarkers} onChange={(event) => setShowImpactMarkers(event.target.checked)} />
-                                    <span>Show impact markers</span>
-                                </label>
-                                <div className="legend-grid">
-                                    <span><i className="legend-swatch new" /> New table/attribute</span>
-                                    <span><i className="legend-swatch renamed" /> Renamed</span>
-                                    <span><i className="legend-swatch rel" /> New relationship</span>
-                                </div>
-                            </div>
+                <div className="topbar-section">
+                    <button className={`btn btn-tool ${viewMode === 'interactive' ? 'is-active' : ''}`} onClick={() => setViewMode('interactive')}>Graph</button>
+                    <button className={`btn btn-tool ${viewMode === 'preview' ? 'is-active' : ''}`} onClick={() => setViewMode('preview')}>Preview</button>
+                </div>
 
-                            <div className="form-group card-panel">
-                                <label>Add table</label>
-                                <input value={newTableLogicalName} onChange={(event) => setNewTableLogicalName(event.target.value)} placeholder="logical_name" />
-                                <input value={newTableDisplayName} onChange={(event) => setNewTableDisplayName(event.target.value)} placeholder="Display Name" />
-                                <button className="btn btn-secondary" onClick={handleAddTable}>Add table</button>
-                            </div>
+                {viewMode === 'preview' && (
+                    <>
+                        <div className="topbar-divider" />
+                        <div className="topbar-section">
+                            <button className={`btn btn-tool ${previewMode === 'visual' ? 'is-active' : ''}`} onClick={() => setPreviewMode('visual')}>Visual</button>
+                            <button className={`btn btn-tool ${previewMode === 'text' ? 'is-active' : ''}`} onClick={() => setPreviewMode('text')}>Text</button>
+                        </div>
+                    </>
+                )}
 
-                            <div className="form-group card-panel">
-                                <label htmlFor="tableEditorSelect">Edit table</label>
-                                <select
-                                    id="tableEditorSelect"
-                                    value={selectedTableId}
-                                    onChange={(event) => {
-                                        setSelectedTableId(event.target.value);
-                                        const table = workingModel.tables.find((t) => t.id === event.target.value);
-                                        setRenameTableDisplayName(table?.displayName || '');
-                                    }}
-                                >
-                                    {workingModel.tables.map((table) => (
-                                        <option key={table.id} value={table.id}>
-                                            {table.displayName}
-                                        </option>
-                                    ))}
-                                </select>
+                {workingModel && (
+                    <>
+                        <div className="topbar-divider" />
+                        <button
+                            className={`btn btn-tool ${showExportPanel ? 'is-active' : ''}`}
+                            onClick={() => setShowExportPanel((v) => !v)}
+                            title="Toggle export panel"
+                        >
+                            Export ⇣
+                        </button>
+                    </>
+                )}
+            </header>
 
-                                {selectedTable && (
-                                    <>
-                                        <input value={renameTableDisplayName} onChange={(event) => setRenameTableDisplayName(event.target.value)} placeholder="Table display name" />
-                                        <button className="btn btn-secondary" onClick={handleRenameTable}>Rename table</button>
+            {/* ── WORKSPACE ────────────────────────────────────────────── */}
+            <div className="workspace">
+                <div className="workspace-canvas">
+                    {viewMode === 'interactive'
+                        ? renderGraph()
+                        : <div className="preview-container">{renderPreview()}</div>
+                    }
 
-                                        <label>Add attribute</label>
-                                        <input value={newAttributeLogicalName} onChange={(event) => setNewAttributeLogicalName(event.target.value)} placeholder="attribute_logical_name" />
-                                        <input value={newAttributeDisplayName} onChange={(event) => setNewAttributeDisplayName(event.target.value)} placeholder="Attribute display name" />
-                                        <select value={newAttributeType} onChange={(event) => setNewAttributeType(event.target.value)}>
-                                            <option value="string">string</option>
-                                            <option value="int">int</option>
-                                            <option value="decimal">decimal</option>
-                                            <option value="datetime">datetime</option>
-                                            <option value="boolean">boolean</option>
-                                            <option value="lookup">lookup</option>
-                                        </select>
-                                        <button className="btn btn-secondary" onClick={handleAddAttribute}>Add attribute</button>
+                    {/* Floating action button: Add Table */}
+                    {workingModel && viewMode === 'interactive' && (
+                        <button className="fab" onClick={() => setShowAddTableModal(true)} title="Add a new table">
+                            + Add Table
+                        </button>
+                    )}
+                </div>
 
-                                        <label>Rename attributes</label>
-                                        <div className="attribute-list">
-                                            {selectedTable.attributes.map((attribute) => (
-                                                <div className="attribute-item" key={attribute.id}>
-                                                    <div className="muted-text">{attribute.logicalName}</div>
-                                                    <input
-                                                        value={attributeRenameDrafts[attribute.id] ?? attribute.displayName}
-                                                        onChange={(event) =>
-                                                            setAttributeRenameDrafts((prev) => ({ ...prev, [attribute.id]: event.target.value }))
-                                                        }
-                                                    />
-                                                    <button
-                                                        className="btn btn-tertiary"
-                                                        onClick={() => handleRenameAttribute(attribute.id, attributeRenameDrafts[attribute.id] ?? attribute.displayName)}
-                                                    >
-                                                        Save
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <label>Add relationship</label>
-                                        <input value={relationshipName} onChange={(event) => setRelationshipName(event.target.value)} placeholder="relationship_schema_name" />
-                                        <select value={relationshipTarget} onChange={(event) => setRelationshipTarget(event.target.value)}>
-                                            {workingModel.tables
-                                                .filter((table) => table.id !== selectedTable.id)
-                                                .map((table) => (
-                                                    <option key={table.id} value={table.id}>
-                                                        {table.displayName}
-                                                    </option>
-                                                ))}
-                                        </select>
-                                        <select value={relationshipType} onChange={(event) => setRelationshipType(event.target.value as 'OneToMany' | 'ManyToOne' | 'ManyToMany')}>
-                                            <option value="ManyToOne">ManyToOne</option>
-                                            <option value="OneToMany">OneToMany</option>
-                                            <option value="ManyToMany">ManyToMany</option>
-                                        </select>
-                                        <button className="btn btn-secondary" onClick={handleAddRelationship}>Add relationship</button>
-                                    </>
-                                )}
-                            </div>
-
-                            <div className="form-group card-panel">
-                                <label>Export source</label>
-                                <div className="panel-row">
+                {/* Export side panel */}
+                {showExportPanel && workingModel && (
+                    <aside className="export-panel">
+                        <div className="panel-header">
+                            <span>Export</span>
+                            <button className="panel-close" onClick={() => setShowExportPanel(false)}>✕</button>
+                        </div>
+                        <div className="panel-body">
+                            <div className="form-group">
+                                <label>Source</label>
+                                <div className="format-selector">
                                     <button className={`format-btn ${exportSource === 'working' ? 'active' : ''}`} onClick={() => setExportSource('working')}>Working</button>
                                     <button className={`format-btn ${exportSource === 'baseline' ? 'active' : ''}`} onClick={() => setExportSource('baseline')}>Baseline</button>
                                 </div>
                                 <label className="option-item">
-                                    <input
-                                        type="checkbox"
-                                        checked={exportChangedOnly}
-                                        disabled={exportSource !== 'working'}
-                                        onChange={(event) => setExportChangedOnly(event.target.checked)}
-                                    />
-                                    <span>Export changed only</span>
+                                    <input type="checkbox" checked={exportChangedOnly} disabled={exportSource !== 'working'} onChange={(event) => setExportChangedOnly(event.target.checked)} />
+                                    <span className="inline-label">Changed only</span>
                                 </label>
+                            </div>
 
+                            <div className="form-group">
                                 <label>Format</label>
                                 <div className="format-selector">
                                     <button className={`format-btn ${selectedFormat === 'mermaid' ? 'active' : ''}`} onClick={() => setSelectedFormat('mermaid')}>Mermaid</button>
                                     <button className={`format-btn ${selectedFormat === 'plantuml' ? 'active' : ''}`} onClick={() => setSelectedFormat('plantuml')}>PlantUML</button>
                                     <button className={`format-btn ${selectedFormat === 'drawio' ? 'active' : ''}`} onClick={() => setSelectedFormat('drawio')}>Draw.io</button>
                                 </div>
+                            </div>
 
+                            <div className="form-group">
+                                <label>Options</label>
                                 <label className="option-item">
                                     <input type="checkbox" checked={includeAttributes} onChange={(event) => setIncludeAttributes(event.target.checked)} />
-                                    <span>Include attributes</span>
+                                    <span className="inline-label">Include attributes</span>
                                 </label>
                                 <label className="option-item">
                                     <input type="checkbox" checked={includeRelationships} onChange={(event) => setIncludeRelationships(event.target.checked)} />
-                                    <span>Include relationships</span>
+                                    <span className="inline-label">Include relationships</span>
                                 </label>
-
                                 <div className="option-item">
                                     <label htmlFor="maxAttributesInput" className="inline-label">Max attributes:</label>
                                     <input
@@ -1137,57 +1114,170 @@ function App() {
                                         value={maxAttributesPerTable}
                                         onChange={(event) => {
                                             const parsed = Number.parseInt(event.target.value, 10);
-                                            if (!Number.isNaN(parsed) && parsed >= 0) {
-                                                setMaxAttributesPerTable(parsed);
-                                            }
+                                            if (!Number.isNaN(parsed) && parsed >= 0) setMaxAttributesPerTable(parsed);
                                         }}
                                         className="number-input"
                                     />
                                 </div>
+                            </div>
 
-                                <div className="panel-row">
-                                    <button className="btn btn-secondary" onClick={handleDownload}>Download</button>
-                                    <button className="btn btn-secondary" onClick={handleCopyToClipboard}>Copy</button>
+                            <div className="form-group">
+                                <button className="btn btn-primary" onClick={handleDownload}>Download</button>
+                                <button className="btn btn-secondary" onClick={handleCopyToClipboard}>Copy to clipboard</button>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Legend</label>
+                                <div className="legend-grid">
+                                    <span><i className="legend-swatch new" /> New table/attribute</span>
+                                    <span><i className="legend-swatch renamed" /> Renamed</span>
+                                    <span><i className="legend-swatch rel" /> New relationship</span>
                                 </div>
                             </div>
-                        </>
-                    )}
-                </div>
+                        </div>
+                    </aside>
+                )}
+            </div>
 
-                <div className="diagram-panel">
-                    <div className="diagram-mode-tabs">
-                        <button className={`format-btn ${viewMode === 'interactive' ? 'active' : ''}`} onClick={() => setViewMode('interactive')}>
-                            Interactive Graph (Default)
-                        </button>
-                        <button className={`format-btn ${viewMode === 'preview' ? 'active' : ''}`} onClick={() => setViewMode('preview')}>
-                            Export Preview
-                        </button>
-                        {viewMode === 'preview' && (
-                            <div className="preview-toggle">
-                                <button className={`btn btn-secondary ${previewMode === 'visual' ? 'active' : ''}`} onClick={() => setPreviewMode('visual')}>Visual</button>
-                                <button className={`btn btn-secondary ${previewMode === 'text' ? 'active' : ''}`} onClick={() => setPreviewMode('text')}>Text</button>
+            {/* ── NODE EDITOR DRAWER ──────────────────────────────────── */}
+            {workingModel && selectedTable && viewMode === 'interactive' && (
+                <div className="node-editor-drawer">
+                    <div className="drawer-header">
+                        <div className="drawer-title">
+                            <strong>{selectedTable.displayName}</strong>
+                            <span className="muted-text">{selectedTable.logicalName}</span>
+                        </div>
+                        <div className="drawer-tabs">
+                            <button className={`tab-btn ${nodeEditorTab === 'info' ? 'is-active' : ''}`} onClick={() => setNodeEditorTab('info')}>Rename</button>
+                            <button className={`tab-btn ${nodeEditorTab === 'add-attr' ? 'is-active' : ''}`} onClick={() => setNodeEditorTab('add-attr')}>+ Attribute</button>
+                            <button className={`tab-btn ${nodeEditorTab === 'rename-attrs' ? 'is-active' : ''}`} onClick={() => setNodeEditorTab('rename-attrs')}>Attributes</button>
+                            <button className={`tab-btn ${nodeEditorTab === 'add-rel' ? 'is-active' : ''}`} onClick={() => setNodeEditorTab('add-rel')}>+ Relationship</button>
+                        </div>
+                        <button className="panel-close" onClick={() => setSelectedTableId('')} title="Close editor">✕</button>
+                    </div>
+                    <div className="drawer-body">
+                        {nodeEditorTab === 'info' && (
+                            <div className="inline-form">
+                                <input value={renameTableDisplayName} onChange={(event) => setRenameTableDisplayName(event.target.value)} placeholder="Table display name" />
+                                <button className="btn btn-secondary" onClick={handleRenameTable}>Rename</button>
+                            </div>
+                        )}
+                        {nodeEditorTab === 'add-attr' && (
+                            <div className="inline-form">
+                                <input value={newAttributeLogicalName} onChange={(event) => setNewAttributeLogicalName(event.target.value)} placeholder="logical_name" />
+                                <input value={newAttributeDisplayName} onChange={(event) => setNewAttributeDisplayName(event.target.value)} placeholder="Display name" />
+                                <select value={newAttributeType} onChange={(event) => setNewAttributeType(event.target.value)}>
+                                    <option value="string">string</option>
+                                    <option value="int">int</option>
+                                    <option value="decimal">decimal</option>
+                                    <option value="datetime">datetime</option>
+                                    <option value="boolean">boolean</option>
+                                    <option value="lookup">lookup</option>
+                                </select>
+                                <button className="btn btn-secondary" onClick={handleAddAttribute}>Add attribute</button>
+                            </div>
+                        )}
+                        {nodeEditorTab === 'rename-attrs' && (
+                            <div className="attribute-list">
+                                {selectedTable.attributes.map((attribute) => (
+                                    <div className="attribute-item" key={attribute.id}>
+                                        <div className="muted-text">{attribute.logicalName}</div>
+                                        <input
+                                            value={attributeRenameDrafts[attribute.id] ?? attribute.displayName}
+                                            onChange={(event) => setAttributeRenameDrafts((prev) => ({ ...prev, [attribute.id]: event.target.value }))}
+                                        />
+                                        <button
+                                            className="btn btn-tertiary"
+                                            onClick={() => handleRenameAttribute(attribute.id, attributeRenameDrafts[attribute.id] ?? attribute.displayName)}
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {nodeEditorTab === 'add-rel' && (
+                            <div className="inline-form">
+                                <input value={relationshipName} onChange={(event) => setRelationshipName(event.target.value)} placeholder="relationship_schema_name" />
+                                <select value={relationshipTarget} onChange={(event) => setRelationshipTarget(event.target.value)}>
+                                    {workingModel.tables
+                                        .filter((table) => table.id !== selectedTable.id)
+                                        .map((table) => (
+                                            <option key={table.id} value={table.id}>{table.displayName}</option>
+                                        ))}
+                                </select>
+                                <select value={relationshipType} onChange={(event) => setRelationshipType(event.target.value as 'OneToMany' | 'ManyToOne' | 'ManyToMany')}>
+                                    <option value="ManyToOne">ManyToOne</option>
+                                    <option value="OneToMany">OneToMany</option>
+                                    <option value="ManyToMany">ManyToMany</option>
+                                </select>
+                                <button className="btn btn-secondary" onClick={handleAddRelationship}>Add relationship</button>
                             </div>
                         )}
                     </div>
-                    <div className="diagram-container">
-                        {viewMode === 'interactive' ? renderGraph() : renderPreview()}
+                </div>
+            )}
+
+            {/* ── MODALS ──────────────────────────────────────────────── */}
+
+            {/* Add Table */}
+            {showAddTableModal && (
+                <div className="modal-overlay">
+                    <div className="modal-card">
+                        <h3>Add Table</h3>
+                        <div className="form-group">
+                            <label>Logical name</label>
+                            <input
+                                value={newTableLogicalName}
+                                onChange={(event) => setNewTableLogicalName(event.target.value)}
+                                placeholder="logical_name"
+                                autoFocus
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Display name</label>
+                            <input
+                                value={newTableDisplayName}
+                                onChange={(event) => setNewTableDisplayName(event.target.value)}
+                                placeholder="Display Name (optional)"
+                            />
+                        </div>
+                        <div className="panel-row">
+                            <button className="btn btn-secondary" onClick={() => setShowAddTableModal(false)}>Cancel</button>
+                            <button className="btn btn-primary" onClick={handleAddTable}>Add Table</button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
+            {/* Publish Confirm */}
             {showPublishConfirm && (
                 <div className="modal-overlay">
                     <div className="modal-card">
                         <h3>Publish changes</h3>
                         <p>Publish {changeCount} change(s) to Dataverse now?</p>
                         <div className="panel-row">
-                            <button className="btn btn-secondary" onClick={() => setShowPublishConfirm(false)}>
-                                Cancel
-                            </button>
-                            <button className="btn btn-primary" onClick={handlePublish}>
-                                Confirm Publish
-                            </button>
+                            <button className="btn btn-secondary" onClick={() => setShowPublishConfirm(false)}>Cancel</button>
+                            <button className="btn btn-primary" onClick={handlePublish}>Confirm Publish</button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Publish Result */}
+            {publishResult && (
+                <div className="modal-overlay">
+                    <div className="modal-card">
+                        <h3>{publishResult.success ? '✅ Published successfully' : '⚠️ Published with errors'}</h3>
+                        <div className={`publish-result ${publishResult.success ? 'is-success' : 'is-error'}`}>
+                            {publishResult.lines.map((line, index) => (
+                                <div key={`${line}-${index}`}>{line}</div>
+                            ))}
+                            {!publishResult.success && (
+                                <div className="muted-text">Some operations failed. Review errors and re-run publish.</div>
+                            )}
+                        </div>
+                        <button className="btn btn-primary" onClick={() => setPublishResult(null)}>Close</button>
                     </div>
                 </div>
             )}

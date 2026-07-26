@@ -70,39 +70,171 @@ body {
   font-style: italic;
 }
 
-.main-content {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.controls-panel {
-  width: 320px;
-  background: var(--surface);
-  border-right: 1px solid var(--border-color);
-  padding: 1.5rem;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.diagram-panel {
+.workspace {
   flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+.workspace-canvas {
+  flex: 1;
+  position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: var(--surface-alt);
 }
 
-.error {
-  background: var(--error-bg);
-  border: 1px solid var(--error-border);
-  color: var(--error-text);
+.preview-container {
+  flex: 1;
+  overflow: auto;
   padding: 1rem;
-  border-radius: 4px;
-  margin: 1rem;
+  background: var(--surface);
+}
+
+/* ── TOP BAR ──────────────────────────────────────────────────────────── */
+
+.topbar {
+  height: 48px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.75rem;
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.topbar-brand {
+  font-weight: 700;
   font-size: 0.9rem;
+  color: var(--primary-color);
+  white-space: nowrap;
+  padding-right: 0.35rem;
+  letter-spacing: -0.01em;
+}
+
+.topbar-section {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--border-color);
+  margin: 0 0.3rem;
+  flex-shrink: 0;
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+.topbar-select {
+  height: 30px;
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-alt);
+  color: var(--text-color);
+  max-width: 200px;
+  cursor: pointer;
+}
+
+.topbar-load-btn {
+  height: 30px;
+  padding: 0 0.75rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.topbar-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text-color);
+  user-select: none;
+}
+
+.topbar-toggle input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.btn-tool {
+  height: 30px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn-tool:hover:not(:disabled) {
+  background: var(--surface-alt);
+  border-color: var(--border-hover);
+}
+
+.btn-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-tool.is-active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.btn-publish {
+  height: 30px;
+  padding: 0 0.75rem;
+  background: #107c10;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-publish:hover:not(:disabled) {
+  background: #0b6e0b;
+}
+
+.btn-publish:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── ERROR BANNER ──────────────────────────────────────────────────────── */
+
+.error-banner {
+  background: var(--error-bg);
+  border-bottom: 1px solid var(--error-border);
+  color: var(--error-text);
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  flex-shrink: 0;
 }
 
 .form-group {
@@ -280,6 +412,176 @@ select:focus {
   border-top: 1px solid var(--border-color);
 }
 
+/* ── EXPORT PANEL (right side drawer) ──────────────────────────────────── */
+
+.export-panel {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  background: var(--surface-alt);
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.panel-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.panel-close:hover {
+  background: var(--border-color);
+  color: var(--text-color);
+}
+
+/* ── NODE EDITOR DRAWER (bottom panel) ─────────────────────────────────── */
+
+.node-editor-drawer {
+  height: 200px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-top: 2px solid var(--primary-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--surface-alt);
+  flex-shrink: 0;
+}
+
+.drawer-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.drawer-title strong {
+  font-size: 0.875rem;
+}
+
+.drawer-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  padding: 0.28rem 0.65rem;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.tab-btn:hover {
+  background: var(--surface-alt);
+  border-color: var(--border-hover);
+}
+
+.tab-btn.is-active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.drawer-body {
+  flex: 1;
+  padding: 0.55rem 0.85rem;
+  overflow-y: auto;
+}
+
+.inline-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.inline-form input,
+.inline-form select {
+  width: auto;
+  flex: 1;
+  min-width: 120px;
+  max-width: 260px;
+  height: 32px;
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+}
+
+.inline-form .btn {
+  height: 32px;
+  padding: 0 0.75rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── FLOATING ACTION BUTTON ─────────────────────────────────────────────── */
+
+.fab {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  height: 36px;
+  padding: 0 1rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 18px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  transition: all 0.15s;
+}
+
+.fab:hover {
+  background: var(--primary-hover);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  transform: translateY(-1px);
+}
+
 .diagram-container {
   flex: 1;
   overflow: auto;
@@ -326,13 +628,6 @@ select:focus {
   align-items: center;
   justify-content: center;
   min-height: 400px;
-}
-
-.card-panel {
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.75rem;
-  background: var(--surface-alt);
 }
 
 .panel-row {
@@ -425,9 +720,9 @@ select:focus {
 }
 
 .graph-canvas {
+  flex: 1;
   width: 100%;
-  height: 100%;
-  min-height: 600px;
+  min-height: 0;
   position: relative;
   overflow: hidden;
   background-image: radial-gradient(circle, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
@@ -590,19 +885,6 @@ select:focus {
 .graph-minimap-node.is-selected {
   border-color: var(--primary-color);
   background: rgba(0, 120, 212, 0.35);
-}
-
-.diagram-mode-tabs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 1rem 1rem 0;
-}
-
-.preview-toggle {
-  margin-left: auto;
-  display: flex;
-  gap: 0.4rem;
 }
 
 .modal-overlay {
