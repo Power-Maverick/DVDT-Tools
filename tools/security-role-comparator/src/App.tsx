@@ -60,7 +60,7 @@ function multiSelectSummary(selected: string[], available: string[], noun: strin
 }
 
 /** Row-level filter modes for the comparison grid. */
-type DiffFilter = "differences" | "more" | "less" | "same" | "all";
+type DiffFilter = "differences" | "more" | "less" | "same" | "all" | "combined";
 
 const DIFF_FILTER_OPTIONS: { value: DiffFilter; label: string }[] = [
     { value: "differences", label: "All differences" },
@@ -68,6 +68,7 @@ const DIFF_FILTER_OPTIONS: { value: DiffFilter; label: string }[] = [
     { value: "less", label: "Less than base" },
     { value: "same", label: "Same as base" },
     { value: "all", label: "Show all" },
+    { value: "combined", label: "Combined Permission" },
 ];
 
 type DepthIconInfo = { Icon: ComponentType<{ className?: string; style?: CSSProperties; "aria-label"?: string }>; color: string };
@@ -312,8 +313,27 @@ export default function App() {
         return { hasMore, hasLess };
     };
 
+    // Net permission if the user were assigned the base plus all comparison roles: the highest
+    // depth granted by any of them for the privilege.
+    const getCombinedDepth = (priv: ParsedPrivilege): PrivilegeDepth => {
+        let best: PrivilegeDepth = PrivilegeDepth.None;
+        let bestRank = 0;
+        for (const rid of comparedRoleIds) {
+            const depth = priv.depthByRole[rid] ?? PrivilegeDepth.None;
+            const rank = depthRank(depth);
+            if (rank > bestRank) {
+                bestRank = rank;
+                best = depth;
+            }
+        }
+        return best;
+    };
+
+    const showCombined = diffFilter === "combined";
+
     const matchesDiffFilter = (priv: ParsedPrivilege) => {
         if (diffFilter === "all") return true;
+        if (diffFilter === "combined") return depthRank(getCombinedDepth(priv)) > 0;
         const { hasMore, hasLess } = getRowDiff(priv);
         switch (diffFilter) {
             case "differences":
@@ -389,7 +409,7 @@ export default function App() {
         }));
     }, [filteredData]);
 
-    const columnCount = 2 + comparedRoleIds.length;
+    const columnCount = 2 + comparedRoleIds.length + (showCombined ? 1 : 0);
     const hasResults = comparisonData.length > 0;
 
 
@@ -582,6 +602,11 @@ export default function App() {
                                         <span className="role-col-name">{getRoleName(rid)}</span>
                                     </th>
                                 ))}
+                                {showCombined && (
+                                    <th className="col-role col-combined" title="Combined permission of the base and all comparison roles">
+                                        <span className="role-col-name">Combined Permission</span>
+                                    </th>
+                                )}
                             </tr>
                         </thead>
                         <tbody>
@@ -629,6 +654,11 @@ export default function App() {
                                                         </td>
                                                     );
                                                 })}
+                                                {showCombined && (
+                                                    <td className="col-role-cell col-combined-cell">
+                                                        <DepthIcon depth={getCombinedDepth(priv)} />
+                                                    </td>
+                                                )}
                                             </tr>
                                         </Fragment>
                                     ));

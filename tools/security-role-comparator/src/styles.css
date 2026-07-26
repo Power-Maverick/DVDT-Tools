@@ -14,6 +14,7 @@
     --bg-row-even: #ffffff;
     --bg-row-odd: #f9fafb;
     --bg-base-col: #eff6ff;
+    --bg-combined-col: #ecfdf5;
     --border: #e5e7eb;
     --text: #111827;
     --text-muted: #6b7280;
@@ -35,6 +36,7 @@ body.dark-theme {
     --bg-row-even: #1f2937;
     --bg-row-odd: #111827;
     --bg-base-col: #1e3a5f;
+    --bg-combined-col: #14342a;
     --border: #374151;
     --text: #f9fafb;
     --text-muted: #9ca3af;
@@ -109,9 +111,9 @@ body {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    min-width: 160px;
+    min-width: 96px;
     max-width: 220px;
-    flex: 1 1 160px;
+    flex: 1 1 96px;
 }
 
 .solution-selector-group {
@@ -161,6 +163,7 @@ body.dark-theme .set-base-link {
 
 .role-select {
     width: 100%;
+    min-width: 0;
     padding: 5px 8px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -209,9 +212,10 @@ body.dark-theme .set-base-link {
 .compare-slots {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: flex-end;
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .field-note,
@@ -267,10 +271,14 @@ body.dark-theme .set-base-link {
 }
 
 .search-box {
-    max-width: 260px;
+    flex: 0 1 auto;
+    width: 270px;
+    min-width: 200px;
+    max-width: 270px;
 }
 
 .diff-filter-select {
+    width: 161px;
     padding: 5px 8px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -289,8 +297,9 @@ body.dark-theme .set-base-link {
 }
 
 .multi-filter {
-    min-width: 118px;
-    max-width: 150px;
+    width: 125px !important;
+    min-width: 125px !important;
+    max-width: 125px !important;
 }
 
 /* Compact options in the Groups/Operations listbox to match the ribbon text size. */
@@ -460,6 +469,14 @@ body.dark-theme .set-base-link {
 
 .col-base-cell {
     background: var(--bg-base-col);
+}
+
+.col-combined {
+    background: var(--bg-combined-col);
+}
+
+.col-combined-cell {
+    background: var(--bg-combined-col);
 }
 
 /* Category section header rows */
