@@ -166,8 +166,11 @@ function App() {
             drafts[attribute.id] = attribute.displayName;
         }
         setAttributeRenameDrafts(drafts);
-        setNodeEditorTab('info');
-    }, [selectedTable?.id]);
+    }, [selectedTable]);
+
+    useEffect(() => {
+        if (selectedTableId) setNodeEditorTab('info');
+    }, [selectedTableId]);
 
     useEffect(() => {
         const initializeEnvironment = async () => {
