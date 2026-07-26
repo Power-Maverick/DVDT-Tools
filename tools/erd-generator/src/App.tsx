@@ -1,4 +1,5 @@
 import { Background, Controls, MarkerType, Node, ReactFlow, ReactFlowInstance } from "@xyflow/react";
+import { toPng, toSvg } from "html-to-image";
 import plantumlEncoder from "plantuml-encoder";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ERDGenerator } from "./components/ERDGenerator";
@@ -56,8 +57,10 @@ interface PersistedSession {
 type OutputFormat = "flow" | "mermaid" | "plantuml" | "drawio";
 type DiagramFormat = Exclude<OutputFormat, "flow">;
 type VisualMode = "flow" | DiagramFormat;
+type ExportMode = "text" | "visual" | "both";
+type VisualExportType = "html" | "svg" | "png";
 type EdgeStyleType = "step" | "smoothstep" | "bezier";
-type TopbarFlyout = "display" | "canvas" | null;
+type TopbarFlyout = "display" | "canvas" | "session" | null;
 type CanvasActionTab = "table" | "attribute" | "relationship";
 
 const nodeTypes = { tableNode: GraphTableNode };
@@ -67,6 +70,7 @@ const IMPACT_MEDIUM_ATTRIBUTE_THRESHOLD = 8;
 const IMPACT_HIGH_ATTRIBUTE_THRESHOLD = 18;
 const GRAPH_NODE_MAX_VISIBLE_ATTRIBUTES = 9;
 const SESSION_STORAGE_KEY = "pptb.erd.session.v1";
+const SESSION_LIBRARY_KEY = "pptb.erd.sessions.v1";
 const SESSION_SHARE_VERSION = 1;
 const RESERVED_NAMES = new Set([
     "entity",
@@ -98,30 +102,65 @@ const getImpactLevel = (attributeCount: number): "low" | "medium" | "high" => {
     return "low";
 };
 
-const encodeSessionPayload = (payload: PersistedSession): string => {
-    const bytes = new TextEncoder().encode(JSON.stringify(payload));
-    let binary = "";
-    bytes.forEach((byte) => {
-        binary += String.fromCharCode(byte);
-    });
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-};
-
-const decodeSessionPayload = (encoded: string): PersistedSession => {
-    const padded = encoded + "=".repeat((4 - (encoded.length % 4 || 4)) % 4);
-    const base64 = padded.replace(/-/g, "+").replace(/_/g, "/");
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    const parsed = JSON.parse(new TextDecoder().decode(bytes));
-    if (!parsed || typeof parsed !== "object") throw new Error("Session payload is invalid.");
-    return parsed as PersistedSession;
-};
-
 const isEdgeType = (value: string): value is EdgeStyleType => value === "step" || value === "smoothstep" || value === "bezier";
 const isVisualMode = (value: string): value is VisualMode => value === "flow" || value === "mermaid" || value === "plantuml" || value === "drawio";
+
+const escapeHtml = (value: string): string => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;");
+
+const parseDataUrl = (dataUrl: string): { mimeType: string; isBase64: boolean; data: string } | null => {
+    if (!dataUrl.startsWith("data:")) return null;
+
+    const commaIndex = dataUrl.indexOf(",");
+    if (commaIndex < 0) return null;
+
+    const header = dataUrl.slice(5, commaIndex);
+    const data = dataUrl.slice(commaIndex + 1);
+    const headerParts = header.split(";").filter(Boolean);
+    const isBase64 = headerParts.includes("base64");
+    const mimeType = headerParts.find((part) => part !== "base64") || "text/plain;charset=utf-8";
+    return {
+        mimeType,
+        isBase64,
+        data,
+    };
+};
+
+const decodeDataUrlText = (value: string): string => {
+    const parsed = parseDataUrl(value);
+    if (!parsed) return value;
+
+    if (parsed.isBase64) {
+        const binary = atob(parsed.data);
+        return new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)));
+    }
+
+    return decodeURIComponent(parsed.data.replace(/\+/g, "%20"));
+};
+
+const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
+    const parsed = parseDataUrl(dataUrl);
+    if (!parsed) {
+        return new Blob([dataUrl], { type: "text/plain;charset=utf-8" });
+    }
+
+    if (parsed.isBase64) {
+        const binary = atob(parsed.data);
+        return new Blob([Uint8Array.from(binary, (char) => char.charCodeAt(0))], { type: parsed.mimeType });
+    }
+
+    return new Blob([decodeURIComponent(parsed.data.replace(/\+/g, "%20"))], { type: parsed.mimeType });
+};
+
+const readSessionLibrary = (): Record<string, PersistedSession> => {
+    const raw = localStorage.getItem(SESSION_LIBRARY_KEY);
+    if (!raw) return {};
+    try {
+        const parsed = JSON.parse(raw) as Record<string, PersistedSession>;
+        return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+        return {};
+    }
+};
 
 function App() {
     const [isPPTB, setIsPPTB] = useState<boolean>(false);
@@ -141,6 +180,8 @@ function App() {
     const [visualMode, setVisualMode] = useState<VisualMode>("flow");
     const [previewMode, setPreviewMode] = useState<"visual" | "text">("visual");
     const [selectedFormat, setSelectedFormat] = useState<OutputFormat>("mermaid");
+    const [exportMode, setExportMode] = useState<ExportMode>("both");
+    const [visualExportType, setVisualExportType] = useState<VisualExportType>("html");
     const [edgeType, setEdgeType] = useState<EdgeStyleType>("smoothstep");
     const [hideAttributes, setHideAttributes] = useState<boolean>(false);
     const [hideRelationshipNames, setHideRelationshipNames] = useState<boolean>(false);
@@ -190,6 +231,9 @@ function App() {
     const [mermaidReady, setMermaidReady] = useState<boolean>(false);
     const topbarRef = useRef<HTMLElement | null>(null);
     const sessionFileInputRef = useRef<HTMLInputElement | null>(null);
+    const [savedSessionNames, setSavedSessionNames] = useState<string[]>([]);
+    const [sessionNameInput, setSessionNameInput] = useState<string>("");
+    const [selectedSessionName, setSelectedSessionName] = useState<string>("");
 
     const diff: ModelDiff | null = useMemo(() => {
         if (!baselineModel || !workingModel) return null;
@@ -217,6 +261,10 @@ function App() {
 
     const selectedTable = useMemo(() => workingModel?.tables.find((table) => table.id === selectedTableId) || null, [workingModel, selectedTableId]);
     const selectedRelationshipTargetTable = useMemo(() => workingModel?.tables.find((table) => table.id === relationshipTarget) || null, [workingModel, relationshipTarget]);
+    const availableVisualExportTypes = useMemo<VisualExportType[]>(() => {
+        if (selectedFormat === "drawio") return ["html"];
+        return ["html", "svg", "png"];
+    }, [selectedFormat]);
 
     const changeCount = diff ? totalChangeCount(diff) : 0;
     const publisherPrefixWithUnderscore = useMemo(() => {
@@ -398,6 +446,18 @@ function App() {
     }, [visualMode]);
 
     useEffect(() => {
+        if (selectedFormat === "flow" && exportMode !== "visual") {
+            setExportMode("visual");
+        }
+    }, [selectedFormat, exportMode]);
+
+    useEffect(() => {
+        if (!availableVisualExportTypes.includes(visualExportType)) {
+            setVisualExportType(availableVisualExportTypes[0]);
+        }
+    }, [availableVisualExportTypes, visualExportType]);
+
+    useEffect(() => {
         const onDocumentClick = (event: MouseEvent) => {
             if (!topbarRef.current) return;
             if (!topbarRef.current.contains(event.target as Node)) {
@@ -475,22 +535,6 @@ function App() {
     }, [workingModel, baselineModel, includeAttributes, includeRelationships, maxAttributesPerTable, exportSource, exportChangedOnly, positions]);
 
     useEffect(() => {
-        const hash = window.location.hash;
-        if (!hash || !hash.includes("session=")) return;
-
-        const params = new URLSearchParams(hash.replace(/^#/, ""));
-        const encodedSession = params.get("session");
-        if (!encodedSession) return;
-
-        try {
-            const payload = decodeSessionPayload(encodedSession);
-            applySessionPayload(payload);
-        } catch (err) {
-            showError(`Failed to load shared session: ${(err as Error).message}`);
-        }
-    }, []);
-
-    useEffect(() => {
         const preloadMermaid = async () => {
             try {
                 await ensureMermaid();
@@ -500,6 +544,13 @@ function App() {
             }
         };
         preloadMermaid();
+    }, []);
+
+    useEffect(() => {
+        const library = readSessionLibrary();
+        const names = Object.keys(library).sort((left, right) => left.localeCompare(right));
+        setSavedSessionNames(names);
+        setSelectedSessionName((current) => (current && names.includes(current) ? current : names[0] || ""));
     }, []);
 
     const ensureMermaid = async (): Promise<void> => {
@@ -540,6 +591,13 @@ function App() {
     const showError = (message: string) => {
         setError(message);
         setTimeout(() => setError(""), ERROR_DISPLAY_DURATION_MS);
+        if (isPPTB && window.toolboxAPI?.utils?.showNotification) {
+            void window.toolboxAPI.utils.showNotification({
+                title: "Error",
+                body: message,
+                type: "error",
+            });
+        }
     };
 
     const pushSnapshot = (model: ERDEditorModel, nextPositions: GraphPositions) => {
@@ -872,6 +930,266 @@ function App() {
         window.setTimeout(() => reactFlowInstance?.fitView({ padding: 0.2, duration: 350 }), 0);
     };
 
+    const saveFileWithFallback = async (fileName: string, contents: string, mimeType = "text/plain;charset=utf-8") => {
+        const saveFileFn = window.toolboxAPI?.utils && (window.toolboxAPI.utils as any).saveFile;
+
+        if (typeof saveFileFn === "function") {
+            await saveFileFn(fileName, contents);
+            return;
+        }
+
+        const blob = new Blob([contents], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+    };
+
+    const saveBlob = (fileName: string, blob: Blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+    };
+
+    const svgToPngBlob = async (svgMarkup: string): Promise<Blob> => {
+        const svgBlob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
+        const objectUrl = URL.createObjectURL(svgBlob);
+
+        try {
+            const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => reject(new Error("Failed to convert SVG to PNG."));
+                img.src = objectUrl;
+            });
+
+            const width = Math.max(1, Math.ceil(image.width || 1200));
+            const height = Math.max(1, Math.ceil(image.height || 800));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext("2d");
+            if (!context) throw new Error("Canvas 2D context unavailable.");
+            context.fillStyle = "#ffffff";
+            context.fillRect(0, 0, width, height);
+            context.drawImage(image, 0, 0, width, height);
+
+            const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+            if (!blob) throw new Error("Failed to encode PNG.");
+            return blob;
+        } finally {
+            URL.revokeObjectURL(objectUrl);
+        }
+    };
+
+    const getFlowVisualExportArtifact = async (visualType: VisualExportType, baseName: string): Promise<{ fileName: string; contents?: string; mimeType?: string; blob?: Blob }> => {
+        const canvasNode = document.querySelector(".graph-canvas") as HTMLElement | null;
+        if (!canvasNode) throw new Error("Flow canvas not found for visual export.");
+
+        const previousViewport = reactFlowInstance?.toObject().viewport;
+        if (reactFlowInstance) {
+            await reactFlowInstance.fitView({ padding: 0.2, duration: 0 });
+            await new Promise((resolve) => window.requestAnimationFrame(() => resolve(null)));
+        }
+
+        const restoreViewport = async () => {
+            if (!reactFlowInstance || !previousViewport) return;
+            await reactFlowInstance.setViewport(previousViewport, { duration: 0 });
+        };
+
+        try {
+            if (visualType === "html") {
+                const svgDataUrl = await toSvg(canvasNode, { cacheBust: true, pixelRatio: 2, width: canvasNode.scrollWidth, height: canvasNode.scrollHeight });
+                const svgMarkup = decodeDataUrlText(svgDataUrl);
+                const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(baseName)}</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: Segoe UI, sans-serif; background: #f8fafc; }
+    .flow-export-surface { display: inline-block; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: auto; }
+    .flow-export-surface svg { display: block; width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+    <div class="flow-export-surface">${svgMarkup}</div>
+</body>
+</html>`;
+
+                return {
+                    fileName: `${baseName}.html`,
+                    contents: html,
+                    mimeType: "text/html;charset=utf-8",
+                };
+            }
+
+            if (visualType === "svg") {
+                const svgDataUrl = await toSvg(canvasNode, { cacheBust: true, pixelRatio: 2, width: canvasNode.scrollWidth, height: canvasNode.scrollHeight });
+                const svgText = decodeDataUrlText(svgDataUrl);
+                return {
+                    fileName: `${baseName}.svg`,
+                    contents: svgText,
+                    mimeType: "image/svg+xml;charset=utf-8",
+                };
+            }
+
+            const pngDataUrl = await toPng(canvasNode, { cacheBust: true, pixelRatio: 2, width: canvasNode.scrollWidth, height: canvasNode.scrollHeight });
+            const blob = await dataUrlToBlob(pngDataUrl);
+            return {
+                fileName: `${baseName}.png`,
+                blob,
+            };
+        } finally {
+            await restoreViewport();
+        }
+    };
+
+    const getVisualExportArtifact = async (
+        format: OutputFormat,
+        diagram: string,
+        baseName: string,
+        visualType: VisualExportType,
+    ): Promise<{ fileName: string; contents?: string; mimeType?: string; blob?: Blob }> => {
+        if (format === "flow") {
+            return getFlowVisualExportArtifact(visualType, baseName);
+        }
+
+        if (format === "mermaid") {
+            if (visualType === "svg" || visualType === "png") {
+                await ensureMermaid();
+                if (!window.mermaid) throw new Error("Mermaid renderer is unavailable.");
+                const renderId = `export-mermaid-${Math.random().toString(36).slice(2)}`;
+                const result = await window.mermaid.render(renderId, diagram);
+
+                if (visualType === "svg") {
+                    return {
+                        fileName: `${baseName}.svg`,
+                        contents: result.svg,
+                        mimeType: "image/svg+xml;charset=utf-8",
+                    };
+                }
+
+                const pngBlob = await svgToPngBlob(result.svg);
+                return {
+                    fileName: `${baseName}.png`,
+                    blob: pngBlob,
+                };
+            }
+
+            const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(baseName)}</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: Segoe UI, sans-serif; background: #f8fafc; }
+    .mermaid { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+  </style>
+</head>
+<body>
+  <div class="mermaid">${escapeHtml(diagram)}</div>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "default" });
+  </script>
+</body>
+</html>`;
+
+            return {
+                fileName: `${baseName}.html`,
+                contents: html,
+                mimeType: "text/html;charset=utf-8",
+            };
+        }
+
+        if (format === "plantuml") {
+            const encoded = plantumlEncoder.encode(diagram);
+
+            if (visualType === "svg") {
+                const response = await fetch(`https://www.plantuml.com/plantuml/svg/${encoded}`);
+                if (!response.ok) throw new Error(`PlantUML HTTP ${response.status}`);
+                const svg = await response.text();
+                return {
+                    fileName: `${baseName}.svg`,
+                    contents: svg,
+                    mimeType: "image/svg+xml;charset=utf-8",
+                };
+            }
+
+            if (visualType === "png") {
+                const response = await fetch(`https://www.plantuml.com/plantuml/png/${encoded}`);
+                if (!response.ok) throw new Error(`PlantUML HTTP ${response.status}`);
+                return {
+                    fileName: `${baseName}.png`,
+                    blob: await response.blob(),
+                };
+            }
+
+            const imgUrl = `https://www.plantuml.com/plantuml/svg/${encoded}`;
+            const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(baseName)}</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: Segoe UI, sans-serif; background: #f8fafc; }
+    .frame { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow: auto; }
+    img { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div class="frame"><img src="${imgUrl}" alt="PlantUML Diagram" /></div>
+</body>
+</html>`;
+
+            return {
+                fileName: `${baseName}.html`,
+                contents: html,
+                mimeType: "text/html;charset=utf-8",
+            };
+        }
+
+        if (visualType !== "html") {
+            throw new Error("Draw.io visual export currently supports HTML only.");
+        }
+
+        const drawioUrl = `https://viewer.diagrams.net/?highlight=0000ff&edit=_blank&layers=1&nav=1&title=ERD#R${encodeURIComponent(diagram)}`;
+        const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(baseName)}</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    iframe { width: 100%; height: 100%; border: 0; }
+  </style>
+</head>
+<body>
+  <iframe src="${drawioUrl}" title="Draw.io Diagram"></iframe>
+</body>
+</html>`;
+
+        return {
+            fileName: `${baseName}.html`,
+            contents: html,
+            mimeType: "text/html;charset=utf-8",
+        };
+    };
+
     const handleDownload = async () => {
         const currentDiagram = generatedDiagrams[selectedFormat];
         if (!currentDiagram) return;
@@ -884,28 +1202,36 @@ function App() {
         };
 
         const sourceSuffix = exportSource === "baseline" ? "baseline" : exportChangedOnly ? "changed" : "working";
-        const fileName = `${selectedSolution}-erd-${sourceSuffix}.${extensions[selectedFormat]}`;
+        const baseName = `${selectedSolution || "session"}-erd-${sourceSuffix}-${selectedFormat}`;
+        const textFileName = `${baseName}.${extensions[selectedFormat]}`;
+        const effectiveMode: ExportMode = selectedFormat === "flow" ? "visual" : exportMode;
 
         try {
-            if (isPPTB) {
-                const savedPath = await window.toolboxAPI.utils.saveFile(fileName, currentDiagram);
-                if (savedPath) {
-                    await window.toolboxAPI.utils.showNotification({
-                        title: "Success",
-                        body: "File saved successfully.",
-                        type: "success",
-                    });
+            if (effectiveMode === "text") {
+                await saveFileWithFallback(textFileName, currentDiagram, selectedFormat === "flow" ? "application/json;charset=utf-8" : "text/plain;charset=utf-8");
+            } else if (effectiveMode === "visual") {
+                const visual = await getVisualExportArtifact(selectedFormat, currentDiagram, baseName, visualExportType);
+                if (visual.blob) {
+                    saveBlob(visual.fileName, visual.blob);
+                } else {
+                    await saveFileWithFallback(visual.fileName, visual.contents || "", visual.mimeType || "text/plain;charset=utf-8");
                 }
             } else {
-                const blob = new Blob([currentDiagram], { type: "text/plain;charset=utf-8" });
-                const url = URL.createObjectURL(blob);
-                const anchor = document.createElement("a");
-                anchor.href = url;
-                anchor.download = fileName;
-                document.body.appendChild(anchor);
-                anchor.click();
-                document.body.removeChild(anchor);
-                URL.revokeObjectURL(url);
+                await saveFileWithFallback(textFileName, currentDiagram, selectedFormat === "flow" ? "application/json;charset=utf-8" : "text/plain;charset=utf-8");
+                const visual = await getVisualExportArtifact(selectedFormat, currentDiagram, baseName, visualExportType);
+                if (visual.blob) {
+                    saveBlob(visual.fileName, visual.blob);
+                } else {
+                    await saveFileWithFallback(visual.fileName, visual.contents || "", visual.mimeType || "text/plain;charset=utf-8");
+                }
+            }
+
+            if (isPPTB) {
+                await window.toolboxAPI.utils.showNotification({
+                    title: "Success",
+                    body: "File download completed.",
+                    type: "success",
+                });
             }
         } catch (err: any) {
             showError(`Failed to save file: ${err.message}`);
@@ -938,11 +1264,22 @@ function App() {
                 return;
             }
 
+            const sessionName = sessionNameInput.trim() || selectedSessionName.trim() || selectedSolution.trim() || "My Session";
+            if (!sessionName) return;
+
+            const library = readSessionLibrary();
+            library[sessionName] = payload;
+            localStorage.setItem(SESSION_LIBRARY_KEY, JSON.stringify(library));
             localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+            const names = Object.keys(library).sort((left, right) => left.localeCompare(right));
+            setSavedSessionNames(names);
+            setSelectedSessionName(sessionName);
+            setSessionNameInput(sessionName);
+
             if (isPPTB) {
                 await window.toolboxAPI.utils.showNotification({
                     title: "Success",
-                    body: "Session saved locally.",
+                    body: `Session '${sessionName}' saved locally.`,
                     type: "success",
                 });
             }
@@ -953,18 +1290,29 @@ function App() {
 
     const handleLoadSession = async () => {
         try {
-            const raw = localStorage.getItem(SESSION_STORAGE_KEY);
-            if (!raw) {
+            const library = readSessionLibrary();
+            const names = Object.keys(library).sort((left, right) => left.localeCompare(right));
+            if (names.length === 0) {
                 showError("No saved session found.");
                 return;
             }
 
-            const payload = JSON.parse(raw) as PersistedSession;
+            const pick = selectedSessionName.trim() || names[0];
+            const payload = library[pick];
+            if (!payload) {
+                showError(`Session '${pick}' does not exist.`);
+                return;
+            }
+
             applySessionPayload(payload);
+            localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+            setSavedSessionNames(names);
+            setSelectedSessionName(pick);
+            setSessionNameInput(pick);
             if (isPPTB) {
                 await window.toolboxAPI.utils.showNotification({
                     title: "Success",
-                    body: "Session restored.",
+                    body: `Session '${pick}' restored.`,
                     type: "success",
                 });
             }
@@ -1016,7 +1364,7 @@ function App() {
         }
     };
 
-    const handleShareSession = async () => {
+    const handleShareSessionFile = async () => {
         try {
             const payload = buildSessionPayload();
             if (!payload) {
@@ -1024,18 +1372,12 @@ function App() {
                 return;
             }
 
-            const encoded = encodeSessionPayload(payload);
-            const shareUrl = `${window.location.origin}${window.location.pathname}#session=${encoded}`;
-            if (shareUrl.length > 7800) {
-                showError("Session is too large for a share URL. Use Flow export/import instead.");
-                return;
-            }
-
-            await copyText(shareUrl);
+            const fileName = `${selectedSolution || "session"}-erd-session.json`;
+            await saveFileWithFallback(fileName, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
             if (isPPTB) {
                 await window.toolboxAPI.utils.showNotification({
                     title: "Success",
-                    body: "Share link copied to clipboard.",
+                    body: "Session file exported for sharing.",
                     type: "success",
                 });
             }
@@ -1380,10 +1722,10 @@ function App() {
                         <div className="topbar-divider" />
                         <div className="topbar-section">
                             <button className="btn btn-tool" onClick={handleUndo} disabled={historyPast.length === 0} title="Undo">
-                                ↩ Undo
+                                ↩
                             </button>
                             <button className="btn btn-tool" onClick={handleRedo} disabled={historyFuture.length === 0} title="Redo">
-                                Redo ↪
+                                ↪
                             </button>
                         </div>
 
@@ -1393,6 +1735,45 @@ function App() {
                         </button>
                     </>
                 )}
+
+                <div className="topbar-divider" />
+                <div className="topbar-flyout">
+                    <button
+                        className={`btn btn-tool ${openTopbarFlyout === "session" ? "is-active" : ""}`}
+                        onClick={() => setOpenTopbarFlyout((current) => (current === "session" ? null : "session"))}
+                        title="Session actions"
+                    >
+                        Session ▾
+                    </button>
+                    {openTopbarFlyout === "session" && (
+                        <div className="topbar-flyout-menu topbar-flyout-menu-canvas">
+                            <div className="topbar-flyout-section-title">Session Name</div>
+                            <input className="session-input" value={sessionNameInput} onChange={(event) => setSessionNameInput(event.target.value)} placeholder="Enter a name to save" />
+                            <div className="topbar-flyout-section-title">Saved Sessions</div>
+                            <select className="session-select" value={selectedSessionName} onChange={(event) => setSelectedSessionName(event.target.value)}>
+                                <option value="">Select a saved session…</option>
+                                {savedSessionNames.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
+                            <button className="btn btn-tool" onClick={handleSaveSession} disabled={!sessionNameInput.trim() && !selectedSessionName.trim() && !selectedSolution.trim()}>
+                                Save Session
+                            </button>
+                            <button className="btn btn-tool" onClick={handleLoadSession} disabled={savedSessionNames.length === 0}>
+                                Load Session
+                            </button>
+                            <button className="btn btn-tool" onClick={handleShareSessionFile} disabled={!workingModel}>
+                                Share Session (JSON)
+                            </button>
+                            <button className="btn btn-tool" onClick={() => sessionFileInputRef.current?.click()}>
+                                Import Session JSON
+                            </button>
+                            <div className="topbar-flyout-note">Saved sessions can be loaded directly without selecting a solution first.</div>
+                        </div>
+                    )}
+                </div>
 
                 <div className="topbar-spacer" />
 
@@ -1559,8 +1940,8 @@ function App() {
                             </div>
 
                             <div className="form-group">
-                                <label>Format</label>
-                                <div className="format-selector">
+                                <label>Diagram</label>
+                                <div className="format-selector format-selector-grid">
                                     <button className={`format-btn ${selectedFormat === "flow" ? "active" : ""}`} onClick={() => setSelectedFormat("flow")}>
                                         Flow
                                     </button>
@@ -1574,6 +1955,52 @@ function App() {
                                         Draw.io
                                     </button>
                                 </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Format</label>
+                                <div className="format-selector">
+                                    <button className={`format-btn ${exportMode === "text" ? "active" : ""}`} onClick={() => setExportMode("text")} disabled={selectedFormat === "flow"}>
+                                        Text
+                                    </button>
+                                    <button className={`format-btn ${exportMode === "visual" ? "active" : ""}`} onClick={() => setExportMode("visual")}>
+                                        Visual
+                                    </button>
+                                    <button className={`format-btn ${exportMode === "both" ? "active" : ""}`} onClick={() => setExportMode("both")} disabled={selectedFormat === "flow"}>
+                                        Both
+                                    </button>
+                                </div>
+                                {selectedFormat === "flow" && <div className="muted-text">Flow exports are visual-only.</div>}
+                            </div>
+
+                            <div className="form-group">
+                                <label>Visual Type</label>
+                                <div className="format-selector">
+                                    <button
+                                        className={`format-btn ${visualExportType === "html" ? "active" : ""}`}
+                                        onClick={() => setVisualExportType("html")}
+                                        disabled={!availableVisualExportTypes.includes("html")}
+                                    >
+                                        HTML
+                                    </button>
+                                    <button
+                                        className={`format-btn ${visualExportType === "svg" ? "active" : ""}`}
+                                        onClick={() => setVisualExportType("svg")}
+                                        disabled={!availableVisualExportTypes.includes("svg")}
+                                    >
+                                        SVG
+                                    </button>
+                                    <button
+                                        className={`format-btn ${visualExportType === "png" ? "active" : ""}`}
+                                        onClick={() => setVisualExportType("png")}
+                                        disabled={!availableVisualExportTypes.includes("png")}
+                                    >
+                                        PNG
+                                    </button>
+                                </div>
+                                {!availableVisualExportTypes.includes("svg") && !availableVisualExportTypes.includes("png") && (
+                                    <div className="muted-text">This diagram supports HTML visual export only.</div>
+                                )}
                             </div>
 
                             <div className="form-group">
@@ -1612,23 +2039,6 @@ function App() {
                                 <button className="btn btn-secondary" onClick={handleCopyToClipboard}>
                                     {selectedFormat === "flow" ? "Copy JSON" : "Copy to clipboard"}
                                 </button>
-                            </div>
-
-                            <div className="form-group">
-                                <label>Session</label>
-                                <button className="btn btn-secondary" onClick={handleSaveSession}>
-                                    Save Session
-                                </button>
-                                <button className="btn btn-secondary" onClick={handleLoadSession}>
-                                    Load Session
-                                </button>
-                                <button className="btn btn-secondary" onClick={handleShareSession}>
-                                    Share Session Link
-                                </button>
-                                <button className="btn btn-secondary" onClick={() => sessionFileInputRef.current?.click()}>
-                                    Import Session File
-                                </button>
-                                <div className="muted-text">Tip: Flow export JSON can be shared and imported as a session file.</div>
                             </div>
 
                             <div className="form-group">
