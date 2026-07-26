@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { DataverseAttribute, DataverseRelationship, DataverseSolution, DataverseTable } from '../models/interfaces';
+import { ERDEditorModel, ModelDiff, PublishSummary } from '../models/editor';
 import { Helper } from './Helper';
 
 /**
@@ -325,6 +326,205 @@ export class DataverseClient {
         throw new Error(`Dataverse API error: ${error.response.status} - ${error.response.data?.error?.message || error.message}`);
       }
       throw error;
+    }
+
+    async publishModelChanges(baseline: ERDEditorModel, working: ERDEditorModel, diff: ModelDiff): Promise<PublishSummary> {
+      const helper = new Helper(this.axiosInstance);
+      const results: PublishSummary['results'] = [];
+      const tableById = new Map(working.tables.map((table) => [table.id, table]));
+
+      const label = (name: string): Record<string, unknown> => ({
+        LocalizedLabels: [{ Label: name, LanguageCode: 1033 }],
+      });
+
+      const createEntity = async (tableId: string) => {
+        const table = tableById.get(tableId);
+        if (!table) return;
+
+        const payload: Record<string, unknown> = {
+          '@odata.type': 'Microsoft.Dynamics.CRM.EntityMetadata',
+          SchemaName: table.schemaName,
+          DisplayName: label(table.displayName),
+          DisplayCollectionName: label(`${table.displayName}s`),
+          Description: label(`Created by ERD Generator for ${table.displayName}`),
+          OwnershipType: 'UserOwned',
+          IsActivity: false,
+        };
+
+        await helper.postOData('EntityDefinitions', payload, this.isPPTB);
+        results.push({ name: `Create table ${table.logicalName}`, success: true, message: 'Created' });
+      };
+
+      const renameEntity = async (tableId: string) => {
+        const table = tableById.get(tableId);
+        if (!table) return;
+        await helper.patchOData(`EntityDefinitions(LogicalName='${table.logicalName}')`, { DisplayName: label(table.displayName) }, this.isPPTB);
+        results.push({ name: `Rename table ${table.logicalName}`, success: true, message: 'Updated display name' });
+      };
+
+      const addAttribute = async (tableId: string) => {
+        const table = tableById.get(tableId);
+        if (!table) return;
+        const newAttributes = table.attributes.filter((attribute) => diff.newAttributeIds.has(attribute.id));
+
+        for (const attribute of newAttributes) {
+          const payload = this.buildAttributePayload(attribute.logicalName, attribute.displayName, attribute.type, attribute.isRequired);
+          await helper.postOData(`EntityDefinitions(LogicalName='${table.logicalName}')/Attributes`, payload, this.isPPTB);
+          results.push({ name: `Add attribute ${table.logicalName}.${attribute.logicalName}`, success: true, message: 'Created' });
+        }
+      };
+
+      const renameAttribute = async (tableId: string) => {
+        const table = tableById.get(tableId);
+        if (!table) return;
+        const renamed = table.attributes.filter((attribute) => diff.renamedAttributeIds.has(attribute.id));
+
+        for (const attribute of renamed) {
+          await helper.patchOData(
+            `EntityDefinitions(LogicalName='${table.logicalName}')/Attributes(LogicalName='${attribute.logicalName}')`,
+            { DisplayName: label(attribute.displayName) },
+            this.isPPTB,
+          );
+          results.push({ name: `Rename attribute ${table.logicalName}.${attribute.logicalName}`, success: true, message: 'Updated display name' });
+        }
+      };
+
+      const addRelationships = async () => {
+        for (const relationship of working.relationships.filter((rel) => diff.newRelationshipIds.has(rel.id))) {
+          const fromTable = tableById.get(relationship.fromTableId);
+          const toTable = tableById.get(relationship.toTableId);
+          if (!fromTable || !toTable) continue;
+          const lookupName = relationship.lookupAttribute || `${toTable.logicalName}id`;
+
+          const payload = {
+            '@odata.type': 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata',
+            SchemaName: relationship.schemaName,
+            ReferencedEntity: toTable.logicalName,
+            ReferencingEntity: fromTable.logicalName,
+            ReferencingAttribute: lookupName,
+            Lookup: {
+              '@odata.type': 'Microsoft.Dynamics.CRM.LookupAttributeMetadata',
+              SchemaName: lookupName,
+              DisplayName: label(lookupName),
+              RequiredLevel: {
+                Value: 'None',
+              },
+            },
+          };
+
+          await helper.postOData('RelationshipDefinitions', payload as Record<string, unknown>, this.isPPTB);
+          results.push({ name: `Create relationship ${relationship.schemaName}`, success: true, message: 'Created' });
+        }
+      };
+
+      const executeStep = async (fn: () => Promise<void>, fallbackName: string) => {
+        try {
+          await fn();
+        } catch (error: any) {
+          results.push({
+            name: fallbackName,
+            success: false,
+            message: error?.response?.data?.error?.message || error?.message || 'Unknown error',
+          });
+        }
+      };
+
+      for (const tableId of diff.newTableIds) {
+        await executeStep(() => createEntity(tableId), `Create table ${tableId}`);
+      }
+
+      for (const tableId of diff.renamedTableIds) {
+        await executeStep(() => renameEntity(tableId), `Rename table ${tableId}`);
+      }
+
+      for (const tableId of new Set([...diff.newTableIds, ...diff.renamedTableIds, ...working.tables.map((table) => table.id)])) {
+        await executeStep(() => addAttribute(tableId), `Add attributes for ${tableId}`);
+        await executeStep(() => renameAttribute(tableId), `Rename attributes for ${tableId}`);
+      }
+
+      await executeStep(addRelationships, 'Create relationships');
+
+      await executeStep(async () => {
+        if (this.isPPTB && typeof (window.dataverseAPI as any).publishCustomizations === 'function') {
+          await (window.dataverseAPI as any).publishCustomizations();
+          return;
+        }
+        await helper.postOData('PublishAllXml', {}, this.isPPTB);
+      }, 'Publish customizations');
+
+      return {
+        success: results.every((result) => result.success),
+        results,
+      };
+    }
+
+    private buildAttributePayload(logicalName: string, displayName: string, type: string, isRequired: boolean): Record<string, unknown> {
+      const requiredLevel = {
+        Value: isRequired ? 'ApplicationRequired' : 'None',
+      };
+
+      const base = {
+        SchemaName: logicalName,
+        DisplayName: {
+          LocalizedLabels: [{ Label: displayName, LanguageCode: 1033 }],
+        },
+        RequiredLevel: requiredLevel,
+      };
+
+      switch (type.toLowerCase()) {
+        case 'int':
+        case 'integer':
+          return {
+            '@odata.type': 'Microsoft.Dynamics.CRM.IntegerAttributeMetadata',
+            ...base,
+            MinValue: -2147483648,
+            MaxValue: 2147483647,
+          };
+        case 'decimal':
+        case 'money':
+          return {
+            '@odata.type': 'Microsoft.Dynamics.CRM.DecimalAttributeMetadata',
+            ...base,
+            MinValue: -1000000000,
+            MaxValue: 1000000000,
+            Precision: 2,
+          };
+        case 'datetime':
+          return {
+            '@odata.type': 'Microsoft.Dynamics.CRM.DateTimeAttributeMetadata',
+            ...base,
+            Format: 'DateAndTime',
+            ImeMode: 'Auto',
+          };
+        case 'boolean':
+          return {
+            '@odata.type': 'Microsoft.Dynamics.CRM.BooleanAttributeMetadata',
+            ...base,
+            OptionSet: {
+              TrueOption: {
+                Value: 1,
+                Label: {
+                  LocalizedLabels: [{ Label: 'Yes', LanguageCode: 1033 }],
+                },
+              },
+              FalseOption: {
+                Value: 0,
+                Label: {
+                  LocalizedLabels: [{ Label: 'No', LanguageCode: 1033 }],
+                },
+              },
+            },
+          };
+        default:
+          return {
+            '@odata.type': 'Microsoft.Dynamics.CRM.StringAttributeMetadata',
+            ...base,
+            MaxLength: 200,
+            FormatName: {
+              Value: 'Text',
+            },
+          };
+      }
     }
   }
 }

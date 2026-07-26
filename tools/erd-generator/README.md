@@ -9,10 +9,13 @@ A PowerPlatform ToolBox tool for generating Entity Relationship Diagrams (ERD) f
 - ✅ Access to ToolBox API via `window.toolboxAPI`
 - ✅ Dataverse connection and authentication
 - ✅ Multiple ERD formats: Mermaid, PlantUML, Graphviz, Draw.io
+- ✅ Default interactive relationship graph with pan/zoom/drag, minimap and auto-layout controls
 - ✅ Visual diagram rendering (Mermaid, PlantUML, Draw.io)
 - ✅ Configurable output (attributes, relationships, table limits)
 - ✅ Export diagrams (download source files or copy to clipboard)
 - ✅ Interactive UI with solution selection
+- ✅ In-memory ERD editing (add/rename tables, add/rename attributes, add relationships)
+- ✅ Change highlighting, changed-only filtering, undo/redo, and publish review flow
 
 ## Structure
 
@@ -153,9 +156,11 @@ The tool:
 1. Connects to Dataverse using provided credentials
 2. Lists available solutions
 3. Fetches solution metadata (tables, attributes, relationships)
-4. Generates diagram in selected format
-5. Renders visual preview (Mermaid, PlantUML, Draw.io) or shows source code
-6. Allows export via download or clipboard
+4. Loads schema into an interactive graph editor (default view)
+5. Applies in-memory edits with visual change tracking
+6. Generates diagrams in selected export format
+7. Renders visual preview (Mermaid, PlantUML, Draw.io) or shows source code
+8. Allows export via download or clipboard
 
 ## Configuration Options
 
