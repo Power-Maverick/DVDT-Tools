@@ -1,6 +1,6 @@
 # Dataverse ERD Generator
 
-A PowerPlatform ToolBox tool for generating Entity Relationship Diagrams (ERD) from Dataverse solutions using React and Vite.
+A PowerPlatform ToolBox tool for loading Dataverse solutions into a graph-first ERD editor, applying in-memory schema changes, and exporting diagrams in multiple formats.
 
 ## Features
 
@@ -8,35 +8,16 @@ A PowerPlatform ToolBox tool for generating Entity Relationship Diagrams (ERD) f
 - ✅ Vite for fast development and building
 - ✅ Access to ToolBox API via `window.toolboxAPI`
 - ✅ Dataverse connection and authentication
-- ✅ Multiple ERD formats: Mermaid, PlantUML, Graphviz, Draw.io
-- ✅ Default interactive relationship graph with pan/zoom/drag, minimap and auto-layout controls
+- ✅ Multiple ERD formats: Flow, Mermaid, PlantUML, Draw.io
+- ✅ Graph-first relationship canvas with pan/zoom/drag, fit/reset view and auto-layout controls
 - ✅ Visual diagram rendering (Mermaid, PlantUML, Draw.io)
-- ✅ Configurable output (attributes, relationships, table limits)
-- ✅ Export diagrams (download source files or copy to clipboard)
+- ✅ Configurable output (attributes, relationships, changed-only filtering)
+- ✅ Export modes: Text, Visual, Both
+- ✅ Flow export support with visual-first behavior
 - ✅ Interactive UI with solution selection
 - ✅ In-memory ERD editing (add/rename tables, add/rename attributes, add relationships)
 - ✅ Change highlighting, changed-only filtering, undo/redo, and publish review flow
-
-## Structure
-
-```
-erd-generator/
-├── src/
-│   ├── App.tsx               # Main React component
-│   ├── main.tsx              # Entry point
-│   ├── styles.css            # Global styles
-│   ├── components/
-│   │   └── ERDGenerator.ts   # ERD generation logic
-│   ├── models/
-│   │   └── interfaces.ts     # TypeScript interfaces
-│   └── utils/
-│       └── DataverseClient.ts # Dataverse API client
-├── index.html                # HTML template
-├── vite.config.ts            # Vite configuration
-├── package.json
-├── tsconfig.json
-└── README.md
-```
+- ✅ Session save/load and JSON file sharing (export/import session)
 
 ## Installation
 
@@ -69,14 +50,15 @@ npm run preview
 ## Usage in ToolBox
 
 1. Build the tool:
-   ```bash
-   npm run build
-   ```
+
+    ```bash
+    npm run build
+    ```
 
 2. The built files will be in the `dist/` directory:
-   - `index.html` - Main entry point
-   - `index.js` - Bundled application
-   - `index.css` - Compiled styles
+    - `index.html` - Main entry point
+    - `index.js` - Bundled application
+    - `index.css` - Compiled styles
 
 3. Install the tool in PowerPlatform ToolBox through the UI or programmatically
 
@@ -92,9 +74,9 @@ const context = await window.toolboxAPI.getToolContext();
 
 // Show notification
 await window.toolboxAPI.showNotification({
-  title: "Success",
-  body: "ERD generated successfully",
-  type: "success"
+    title: "Success",
+    body: "ERD generated successfully",
+    type: "success",
 });
 
 // Save file
@@ -111,7 +93,7 @@ await window.toolboxAPI.copyToClipboard(text);
 The tool demonstrates:
 
 - `useState` for managing component state
-- `useEffect` for initialization and side effects  
+- `useEffect` for initialization and side effects
 - Type-safe event handling with TypeScript
 - Dataverse API integration
 
@@ -119,15 +101,27 @@ The tool demonstrates:
 
 Supports four formats:
 
-1. **Mermaid** - Visual diagrams with interactive rendering
-2. **PlantUML** - Text-based UML diagrams
-3. **Graphviz** - DOT language for graph visualization
+1. **Flow** - Interactive graph/canvas representation
+2. **Mermaid** - Visual diagrams with interactive rendering
+3. **PlantUML** - Text-based UML diagrams
 4. **Draw.io** - XML format for diagrams.net/draw.io
 
 Configuration options:
+
 - Include/exclude attributes
 - Include/exclude relationships
-- Limit maximum attributes per table
+- Changed-only filtering for graph inspection
+
+Export options:
+
+- **Text**: download/copy textual source for selected diagram format
+- **Visual**: export visual artifact
+- **Both**: export text + visual together
+
+Flow behavior:
+
+- When format is **Flow**, visual export is used (canvas snapshot / flow visual artifact)
+- Session data can be shared as JSON files (no link-based sharing)
 
 ### Styling
 
@@ -159,36 +153,43 @@ The tool:
 4. Loads schema into an interactive graph editor (default view)
 5. Applies in-memory edits with visual change tracking
 6. Generates diagrams in selected export format
-7. Renders visual preview (Mermaid, PlantUML, Draw.io) or shows source code
-8. Allows export via download or clipboard
+7. Renders visual preview (Flow, Mermaid, PlantUML, Draw.io) or shows source code
+8. Exports using Text / Visual / Both modes
+9. Saves/loads sessions locally and supports JSON session share/import
 
 ## Configuration Options
 
 The tool provides several configuration options:
 
-- **Output Format**: Choose between Mermaid, PlantUML, Graphviz, or Draw.io
+- **Output Format**: Choose between Flow, Mermaid, PlantUML, or Draw.io
 - **Include Attributes**: Show/hide table columns in the diagram
 - **Include Relationships**: Show/hide relationships between tables
-- **Max Attributes**: Limit the number of attributes shown per table (0 = show all)
+- **Changed-only in Graph**: Focus graph on changed tables/entities
+- **Impact Markers**: Highlight impact level in graph nodes
+- **Export Mode**: Text, Visual, or Both
 
 ## Output Formats
 
+### Flow
+
+- Native interactive graph representation
+- Best for editing, validating relationships, and visual-first export
+- Supports pan/zoom/drag and auto-layout controls
+
 ### Mermaid
+
 - Modern, declarative diagram syntax
 - Visual preview available in the tool
 - Great for documentation and GitHub
 
 ### PlantUML
+
 - Widely supported UML format
 - Can be rendered by many tools
 - Standard UML notation
 
-### Graphviz DOT
-- Graph description language
-- Powerful layout engines
-- Flexible customization options
-
 ### Draw.io
+
 - Native diagrams.net/draw.io XML format
 - Visual preview using embedded draw.io viewer
 - Can be opened directly in draw.io web or desktop app
@@ -196,11 +197,19 @@ The tool provides several configuration options:
 - Tables displayed with attributes and relationships
 - Entities positioned in an organized grid layout
 
+## Session Management
+
+- Save the current working session locally by name
+- Load a previously saved session
+- Share sessions by exporting a JSON file
+- Import shared sessions from JSON files
+
 ## Troubleshooting
 
 ### Build Issues
 
 If builds fail, try:
+
 ```bash
 # Clean build artifacts
 rm -rf dist node_modules
@@ -211,6 +220,7 @@ npm run build
 ### ToolBox Integration Issues
 
 Check:
+
 1. `window.toolboxAPI` is available
 2. Console logs for TOOLBOX_CONTEXT messages
 3. Connection context is being received
@@ -232,5 +242,5 @@ This project is licensed under the GPL-2.0 License - see the [LICENSE](../../LIC
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/Power-Maverick/DVDT-Tools/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Power-Maverick/DVDT-Tools/discussions)
+- **Issues**: [GitHub Issues](https://github.com/Power-Maverick/PPTB-Tools/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Power-Maverick/PPTB-Tools/discussions)

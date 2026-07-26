@@ -1,7 +1,7 @@
 import { Handle, NodeProps, Position } from "@xyflow/react";
 import { ERDEditorTable } from "../models/editor";
 
-export interface GraphTableNodeData {
+export interface GraphTableNodeData extends Record<string, unknown> {
     table: ERDEditorTable;
     isNewTable: boolean;
     isRenamed: boolean;
@@ -18,7 +18,8 @@ export interface GraphTableNodeData {
     onSelect: (tableId: string, displayName: string) => void;
 }
 
-export function GraphTableNode({ id, data, selected }: NodeProps<GraphTableNodeData>) {
+export function GraphTableNode({ id, data: rawData, selected }: NodeProps) {
+    const data = rawData as GraphTableNodeData;
     const { table } = data;
     const impactLabel = data.impact !== "none" ? data.impact.charAt(0).toUpperCase() + data.impact.slice(1) : "";
     const newlyAddedAttributes = table.attributes.filter((attribute) => data.newAttributeIds.has(attribute.id));
