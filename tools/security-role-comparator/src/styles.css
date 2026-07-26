@@ -14,7 +14,7 @@
     --bg-row-even: #ffffff;
     --bg-row-odd: #f9fafb;
     --bg-base-col: #eff6ff;
-    --bg-diff: #fef9c3;
+    --bg-combined-col: #ecfdf5;
     --border: #e5e7eb;
     --text: #111827;
     --text-muted: #6b7280;
@@ -36,7 +36,7 @@ body.dark-theme {
     --bg-row-even: #1f2937;
     --bg-row-odd: #111827;
     --bg-base-col: #1e3a5f;
-    --bg-diff: #422006;
+    --bg-combined-col: #14342a;
     --border: #374151;
     --text: #f9fafb;
     --text-muted: #9ca3af;
@@ -72,9 +72,8 @@ body {
 /* ───────────── Selector bar ───────────── */
 .selector-bar {
     display: flex;
-    align-items: flex-end;
-    gap: 12px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 10px;
     padding: 10px 12px;
     background: var(--bg-subtle);
     border: 1px solid var(--border);
@@ -83,13 +82,42 @@ body {
     flex-shrink: 0;
 }
 
+.selector-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+}
+
+.solution-panel {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    min-width: 0;
+}
+
+.solution-subtext {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+    padding-bottom: 2px;
+}
+
 .role-selector-group {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    min-width: 160px;
+    min-width: 96px;
     max-width: 220px;
-    flex: 1 1 160px;
+    flex: 1 1 96px;
+}
+
+.solution-selector-group {
+    max-width: 320px;
 }
 
 .role-label {
@@ -108,12 +136,34 @@ body.dark-theme .base-label {
     color: #60a5fa;
 }
 
+.set-base-link {
+    margin-left: 6px;
+    padding: 0;
+    background: none;
+    border: none;
+    color: #2563eb;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    cursor: pointer;
+}
+
+.set-base-link:hover {
+    text-decoration: underline;
+}
+
+body.dark-theme .set-base-link {
+    color: #60a5fa;
+}
+
 .select-wrapper {
     position: relative;
 }
 
 .role-select {
     width: 100%;
+    min-width: 0;
     padding: 5px 8px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -162,9 +212,20 @@ body.dark-theme .base-label {
 .compare-slots {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: flex-end;
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.field-note,
+.field-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.field-meta {
+    margin-top: -1px;
 }
 
 .add-slot-btn {
@@ -210,7 +271,45 @@ body.dark-theme .base-label {
 }
 
 .search-box {
-    max-width: 260px;
+    flex: 0 1 auto;
+    width: 270px;
+    min-width: 200px;
+    max-width: 270px;
+}
+
+.diff-filter-select {
+    width: 161px;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--font);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.diff-filter-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.multi-filter {
+    width: 125px !important;
+    min-width: 125px !important;
+    max-width: 125px !important;
+}
+
+/* Compact options in the Groups/Operations listbox to match the ribbon text size. */
+.filter-listbox {
+    min-width: 150px;
+}
+
+.filter-listbox .filter-option {
+    font-size: 12px !important;
+    min-height: 26px;
 }
 
 .result-count {
@@ -229,10 +328,10 @@ body.dark-theme .base-label {
 }
 
 .comparison-table {
-    width: 100%;
+    width: auto;
     border-collapse: collapse;
     font-size: 12px;
-    table-layout: fixed;
+    table-layout: auto;
 }
 
 .comparison-table thead {
@@ -257,8 +356,8 @@ body.dark-theme .base-label {
 }
 
 .col-entity {
-    width: 160px;
-    min-width: 100px;
+    min-width: 120px;
+    max-width: 360px;
     position: sticky;
     left: 0;
     background: var(--bg-subtle);
@@ -267,14 +366,15 @@ body.dark-theme .base-label {
 }
 
 .col-operation {
-    width: 110px;
-    min-width: 80px;
+    min-width: 70px;
+    max-width: 140px;
 }
 
 .col-role {
-    width: 120px;
     min-width: 90px;
+    max-width: 160px;
     text-align: center;
+    border-left: 1px solid var(--border);
 }
 
 .col-base {
@@ -282,15 +382,14 @@ body.dark-theme .base-label {
 }
 
 .role-col-name {
-    display: block;
-    max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.base-badge {
-    margin-top: 2px;
+    max-width: 100%;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.25;
 }
 
 /* Body rows */
@@ -323,6 +422,31 @@ body.dark-theme .base-label {
     border-right: 1px solid var(--border);
 }
 
+.entity-cell-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.entity-display-name {
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.entity-schema-name {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .comparison-table td {
     padding: 5px 10px;
     vertical-align: middle;
@@ -333,14 +457,87 @@ body.dark-theme .base-label {
 
 .col-role-cell {
     text-align: center;
+    position: relative;
+    border-left: 1px solid var(--border);
+}
+
+/* Close off the right edge of the last compare column. */
+.comparison-table th.col-role:last-child,
+.comparison-table td.col-role-cell:last-child {
+    border-right: 1px solid var(--border);
 }
 
 .col-base-cell {
     background: var(--bg-base-col);
 }
 
-.cell-diff {
-    background: var(--bg-diff);
+.col-combined {
+    background: var(--bg-combined-col);
+}
+
+.col-combined-cell {
+    background: var(--bg-combined-col);
+}
+
+/* Category section header rows */
+.category-row td {
+    padding: 0;
+}
+
+.category-cell {
+    position: sticky;
+    left: 0;
+    background: var(--bg-subtle);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text);
+    padding: 6px 10px !important;
+    border-top: 2px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.category-kind-tag {
+    margin-left: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0 6px;
+}
+
+/* Comparison cell: depth icon centered, directional diff icon pinned to the left edge. */
+.diff-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.col-role-cell .diff-icon {
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.diff-more {
+    color: #16a34a;
+}
+
+.diff-less {
+    color: #dc2626;
+}
+
+body.dark-theme .diff-more {
+    color: #4ade80;
+}
+
+body.dark-theme .diff-less {
+    color: #f87171;
 }
 
 .empty-row {
@@ -349,21 +546,17 @@ body.dark-theme .base-label {
     padding: 16px;
 }
 
-/* ───────────── Depth dots ───────────── */
-.depth-dots {
-    display: inline-flex;
-    gap: 3px;
-    align-items: center;
-    cursor: default;
+/* ───────────── Depth icons ───────────── */
+.depth-icon {
+    font-size: 16px;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
-.depth-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-    flex-shrink: 0;
-    transition: background 0.15s;
+/* Compare cells that match the base are de-emphasized so differences stand out. */
+.depth-icon-muted {
+    opacity: 0.4;
+    filter: saturate(0.6);
 }
 
 /* ───────────── Legend ───────────── */
@@ -387,19 +580,6 @@ body.dark-theme .base-label {
 .legend-label {
     font-size: 11px;
     color: var(--text-muted);
-}
-
-.diff-indicator {
-    width: 16px;
-    height: 12px;
-    border-radius: 3px;
-    background: var(--bg-diff);
-    border: 1px solid #ca8a04;
-    flex-shrink: 0;
-}
-
-body.dark-theme .diff-indicator {
-    border-color: #92400e;
 }
 
 /* ───────────── Empty state ───────────── */
