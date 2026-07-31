@@ -6,7 +6,7 @@ import { SolutionPicker } from "./components/SolutionPicker";
 import { TableSidebar } from "./components/TableSidebar";
 import { ViewListPanel } from "./components/ViewListPanel";
 import { CopyOptions, CopyResultItem, Solution, TableInfo, ViewInfo } from "./models/interfaces";
-import { isLookupView, viewTypeRank } from "./models/viewTypes";
+import { getViewTypeLabel, isLookupView, supportsComponents, viewTypeRank } from "./models/viewTypes";
 import { DataverseClient, ViewUpdatePayload } from "./utils/DataverseClient";
 import { buildTargetLayoutXml, mergeFetchXml, parseLayoutColumns } from "./utils/layoutUtils";
 import { version as APP_VERSION } from "../package.json";
@@ -249,12 +249,16 @@ function App() {
                     notes.push(`skipped sort on ${merge.droppedOrders.join(", ")} (related table not in target)`);
                 }
 
-                if (options.components && sourceView.layoutjson && !target.isPersonal) {
-                    payload.layoutjson = sourceView.layoutjson;
+                if (options.components && sourceView.layoutjson) {
+                    if (supportsComponents(target)) {
+                        payload.layoutjson = sourceView.layoutjson;
+                    } else {
+                        notes.push(`skipped components (${getViewTypeLabel(target)} does not support them)`);
+                    }
                 }
 
                 if (Object.keys(payload).length === 0) {
-                    progress[i] = { ...progress[i], status: "success", message: "Nothing to change" };
+                    progress[i] = { ...progress[i], status: "success", message: notes.length > 0 ? notes.join("; ") : "Nothing to change" };
                 } else {
                     await client.updateView(target, payload);
                     if (!target.isPersonal) systemViewUpdated = true;
