@@ -21,6 +21,7 @@ export interface ViewInfo {
     fetchxml: string;
     layoutxml: string;
     layoutjson?: string | null;
+    returnedtypecode: string;
     querytype: number;
     isDefault: boolean;
     /** true when the view is a personal view (userquery) instead of a system view (savedquery) */

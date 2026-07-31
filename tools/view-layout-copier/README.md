@@ -36,6 +36,7 @@ View Layout Copier simplifies keeping view layouts consistent across a table. In
 - **Built with**: React 18 + TypeScript + Vite (no UI framework dependencies)
 - **PPTB Integration**: Uses `@pptb/types` (`window.dataverseAPI` / `window.toolboxAPI`)
 - **Dataverse**: Reads `savedquery`/`userquery`, merges `layoutxml`/`fetchxml`/`layoutjson`, publishes via `PublishXml`
+- **FetchXML updates**: Includes `returnedtypecode` with every FetchXML write, as required by Dataverse for Quick Find and other saved-query updates
 - **Theme aware**: Follows the PPTB light/dark theme
 
 ## Installation

@@ -13,6 +13,7 @@ export interface ViewUpdatePayload {
     fetchxml?: string;
     layoutxml?: string;
     layoutjson?: string;
+    returnedtypecode?: string;
 }
 
 export class DataverseClient {
@@ -127,6 +128,7 @@ export class DataverseClient {
                 fetchxml: v.fetchxml,
                 layoutxml: v.layoutxml,
                 layoutjson: v.layoutjson ?? null,
+                returnedtypecode: tableLogicalName,
                 querytype: v.querytype ?? 0,
                 isDefault: v.isdefault === true,
                 isPersonal: false,
@@ -138,6 +140,7 @@ export class DataverseClient {
                 fetchxml: v.fetchxml,
                 layoutxml: v.layoutxml,
                 layoutjson: null,
+                returnedtypecode: tableLogicalName,
                 querytype: v.querytype ?? 0,
                 isDefault: false,
                 isPersonal: true,
@@ -161,7 +164,8 @@ export class DataverseClient {
     /** Update a system or personal view with the merged layout/fetch changes */
     async updateView(view: ViewInfo, payload: ViewUpdatePayload): Promise<void> {
         const entityName = view.isPersonal ? "userquery" : "savedquery";
-        await window.dataverseAPI.update(entityName, view.id, payload as Record<string, unknown>);
+        const updatePayload = payload.fetchxml ? { ...payload, returnedtypecode: view.returnedtypecode } : payload;
+        await window.dataverseAPI.update(entityName, view.id, updatePayload as Record<string, unknown>);
     }
 
     /** Publish the table once after all system view updates (personal views don't need publishing) */
