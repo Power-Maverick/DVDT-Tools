@@ -55,6 +55,8 @@ npm run dev
 npm run build
 ```
 
+Each production build increments the package's patch version before bundling.
+
 When run locally outside PPTB (`npm run dev`), the tool starts in **demo mode** with an in-memory mock of the Dataverse API and sample tables/views, so the whole flow — including copying — can be exercised in a plain browser. Production builds require PPTB.
 
 ## License

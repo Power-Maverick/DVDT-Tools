@@ -95,9 +95,10 @@ export function parseSortOrders(fetchXml: string): SortOrder[] {
 }
 
 /**
- * Build the target's new layoutxml: the source grid's rows (the column definitions)
- * replace the target's, while the target keeps its own <grid> attributes
- * (jump, select, icon, preview, ...) which differ between view types.
+ * Build the target's new layoutxml: the source row's cells (the column definitions)
+ * replace the target's, while the target keeps its own <grid> and <row> attributes.
+ * Those attributes differ between view types and include metadata required by
+ * special-purpose views such as Quick Find.
  */
 export function buildTargetLayoutXml(sourceLayoutXml: string, targetLayoutXml: string): string {
     const sourceDoc = parseXml(sourceLayoutXml);
@@ -109,11 +110,17 @@ export function buildTargetLayoutXml(sourceLayoutXml: string, targetLayoutXml: s
         throw new Error("layoutxml has no <grid> element");
     }
 
-    for (const row of directChildren(targetGrid, "row")) {
-        targetGrid.removeChild(row);
+    const sourceRow = directChildren(sourceGrid, "row")[0];
+    const targetRow = directChildren(targetGrid, "row")[0];
+    if (!sourceRow || !targetRow) {
+        throw new Error("layoutxml has no <row> element");
     }
-    for (const row of directChildren(sourceGrid, "row")) {
-        targetGrid.appendChild(targetDoc.importNode(row, true));
+
+    while (targetRow.firstChild) {
+        targetRow.removeChild(targetRow.firstChild);
+    }
+    for (const cell of directChildren(sourceRow, "cell")) {
+        targetRow.appendChild(targetDoc.importNode(cell, true));
     }
 
     return serializeXml(targetDoc);

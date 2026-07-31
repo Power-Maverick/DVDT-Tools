@@ -1,7 +1,7 @@
 {
   "name": "@power-maverick/tool-view-layout-copier",
   "displayName": "View Layout Copier",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Copy column layout, sort order and components configuration from one view to multiple views of the same table in a single operation",
   "icon": "icons/layoutReplicator.svg",
   "contributors": [
@@ -21,6 +21,7 @@
   },
   "type": "module",
   "scripts": {
+    "prebuild": "npm run version-stable",
     "build": "vite build",
     "dev": "vite",
     "preview": "vite preview",
