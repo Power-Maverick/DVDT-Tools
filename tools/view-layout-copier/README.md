@@ -19,7 +19,7 @@ View Layout Copier simplifies keeping view layouts consistent across a table. In
   - **Components configuration** — custom controls / grid components (`layoutjson`); skipped for Quick Find, Lookup, Advanced Find, and personal views, which do not support them
 - **Filters are never copied**: Each target view keeps its own filter criteria by design
 - **Smart query merging**: Attributes referenced by the copied layout are added to the target's fetchxml automatically; related-table (link-entity) columns are carried over *without* their filters
-- **Lookup view safety check**: If a lookup view is selected as a target and the source layout's first column is not the table's primary name column, the tool warns you — lookup views need the name column first to work correctly on forms
+- **Lookup view safety block**: A lookup target cannot receive a column layout unless the table's primary name column is first, preventing broken lookup behavior on forms
 - **Single publish**: Customizations are published once per copy operation, not once per view
 - **Real-time progress**: Per-view status with details of what was changed
 

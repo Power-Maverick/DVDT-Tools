@@ -189,8 +189,8 @@ function App() {
         });
     };
 
-    const lookupWarningViews = useMemo(() => {
-        if (!sourceView || !table) return [];
+    const lookupBlockedViews = useMemo(() => {
+        if (!options.columnLayout || !sourceView || !table) return [];
         let firstColumn = "";
         try {
             firstColumn = parseLayoutColumns(sourceView.layoutxml).filter((c) => !c.isHidden)[0]?.name ?? "";
@@ -199,10 +199,14 @@ function App() {
         }
         if (firstColumn === table.primaryNameAttribute) return [];
         return views.filter((v) => targetIds.has(v.id) && isLookupView(v)).map((v) => v.name);
-    }, [sourceView, table, targetIds, views]);
+    }, [options.columnLayout, sourceView, table, targetIds, views]);
 
     const handleCopy = async () => {
         if (!sourceView || !table || targetIds.size === 0) return;
+        if (lookupBlockedViews.length > 0) {
+            showError(`Copy blocked: lookup views must keep ${table.primaryNameAttribute} as their first column.`);
+            return;
+        }
 
         const targets = views.filter((v) => targetIds.has(v.id));
         const progress: CopyResultItem[] = targets.map((v) => ({ viewId: v.id, viewName: v.name, status: "pending" }));
@@ -384,7 +388,7 @@ function App() {
                             options={options}
                             sourceView={sourceView}
                             targetCount={targetIds.size}
-                            lookupWarningViews={lookupWarningViews}
+                            lookupBlockedViews={lookupBlockedViews}
                             primaryNameAttribute={table?.primaryNameAttribute ?? "name"}
                             isCopying={isCopying}
                             results={results}
