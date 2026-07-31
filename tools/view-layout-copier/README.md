@@ -8,7 +8,7 @@ View Layout Copier simplifies keeping view layouts consistent across a table. In
 
 ## Features
 
-- **Solution selector on launch**: Narrow the table list to an unmanaged solution (managed solutions are excluded — they can't be modified), or work across all tables. Defaults to the current user's preferred solution from the maker portal when one is set, otherwise the first unmanaged solution alphabetically
+- **Solution selector on launch**: Narrow the table list to an unmanaged solution (managed solutions are excluded — they can't be modified), or work across all tables. Defaults to the most recently selected solution for the current environment, then the user's maker-portal preference, then the first unmanaged solution alphabetically
 - **Persistent, searchable table list**: Search by display name *or* schema/logical name; the list is alphabetized by display name and stays available on the left for quick switching
 - **View types at a glance**: Every view is badged with its type — Default Public View, Public View, Personal View, Associated View, Advanced Find View, Quick Find View, Lookup View, and more
 - **Personal views included**: Copy to/from personal views (userquery) as well as system views (savedquery)
@@ -25,7 +25,7 @@ View Layout Copier simplifies keeping view layouts consistent across a table. In
 
 ## How to Use
 
-1. **Pick a solution** on the Tables tab to narrow the table list — it's pre-selected using your maker-portal preferred solution when available
+1. **Pick a solution** on the Tables tab to narrow the table list — the last solution used in the current environment is selected when available
 2. **Select a table** from the searchable list on the left
 3. **Choose the source view** whose layout you want to copy — its layout appears in the preview strip
 4. **Check the target views** to apply the layout to

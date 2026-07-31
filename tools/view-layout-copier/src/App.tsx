@@ -12,6 +12,36 @@ import { buildTargetLayoutXml, mergeFetchXml, parseLayoutColumns } from "./utils
 import { version as APP_VERSION } from "../package.json";
 
 const client = new DataverseClient();
+const RECENT_SOLUTION_STORAGE_PREFIX = "pptb:view-layout-copier:recent-solution";
+
+function recentSolutionStorageKey(environmentUrl: string): string | null {
+    if (!environmentUrl) return null;
+    try {
+        return `${RECENT_SOLUTION_STORAGE_PREFIX}:${new URL(environmentUrl).origin}`;
+    } catch {
+        return `${RECENT_SOLUTION_STORAGE_PREFIX}:${environmentUrl}`;
+    }
+}
+
+function readRecentSolutionId(environmentUrl: string): string | null {
+    const key = recentSolutionStorageKey(environmentUrl);
+    if (!key) return null;
+    try {
+        return window.localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function saveRecentSolutionId(environmentUrl: string, solutionId: string): void {
+    const key = recentSolutionStorageKey(environmentUrl);
+    if (!key || !solutionId) return;
+    try {
+        window.localStorage.setItem(key, solutionId);
+    } catch {
+        // Browser storage is optional; preferred-solution fallback remains available.
+    }
+}
 
 function App() {
     const isDemoMode = (window as any).__PPTB_MOCK__ === true;
@@ -80,9 +110,11 @@ function App() {
                 return;
             }
 
+            let activeConnectionUrl = "";
             try {
                 const activeConnection = await window.toolboxAPI?.connections.getActiveConnection();
-                setConnectionUrl(activeConnection?.url || "");
+                activeConnectionUrl = activeConnection?.url || "";
+                setConnectionUrl(activeConnectionUrl);
             } catch (e) {
                 console.error("Failed to get connection:", e);
             }
@@ -92,10 +124,14 @@ function App() {
                 setSolutions(solutionList);
                 setTables(tableList);
 
-                // Default to the user's maker-portal preferred solution when it's one of the
-                // unmanaged solutions we can write to; otherwise fall back to the first
-                // alphabetically. Leaves "All tables" unselected only when no solutions exist.
-                const defaultSolutionId = solutionList.find((s) => s.id === preferredSolutionId)?.id ?? solutionList[0]?.id ?? "";
+                // Prefer the last solution selected in this environment, then the maker-portal
+                // preference, then the first unmanaged solution alphabetically.
+                const recentSolutionId = readRecentSolutionId(activeConnectionUrl);
+                const defaultSolutionId =
+                    solutionList.find((s) => s.id.toLowerCase() === recentSolutionId?.toLowerCase())?.id ??
+                    solutionList.find((s) => s.id.toLowerCase() === preferredSolutionId?.toLowerCase())?.id ??
+                    solutionList[0]?.id ??
+                    "";
                 if (defaultSolutionId) {
                     setSelectedSolutionId(defaultSolutionId);
                     setSolutionTableIds(await fetchSolutionTableIds(defaultSolutionId));
@@ -119,6 +155,7 @@ function App() {
             setSolutionTableIds(null);
             return;
         }
+        saveRecentSolutionId(connectionUrl, solutionId);
         setLoadingTables(true);
         const ids = await fetchSolutionTableIds(solutionId);
         setSolutionTableIds(ids);
