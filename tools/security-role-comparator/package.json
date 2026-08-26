@@ -1,7 +1,7 @@
 {
     "name": "@power-maverick/tool-security-role-comparator",
     "displayName": "Security Role Comparator",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "Compare one security role against up to 5 other roles in the same Dataverse environment",
     "icon": "icons/securityRoleComparator.svg",
     "contributors": [
@@ -19,6 +19,8 @@
         "repository": "https://github.com/Power-Maverick/PPTB-Tools/tree/main/tools/security-role-comparator",
         "readmeUrl": "https://raw.githubusercontent.com/Power-Maverick/PPTB-Tools/refs/heads/main/tools/security-role-comparator/README.md"
     },
+    "homepage": "https://github.com/Power-Maverick/PPTB-Tools/tree/main/tools/security-role-comparator",
+    "readme": "https://raw.githubusercontent.com/Power-Maverick/PPTB-Tools/refs/heads/main/tools/security-role-comparator/README.md",
     "type": "module",
     "scripts": {
         "build": "npm run typecheck && vite build",
