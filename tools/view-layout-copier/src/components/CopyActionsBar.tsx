@@ -5,7 +5,7 @@ interface CopyActionsBarProps {
     sourceView?: ViewInfo;
     targetCount: number;
     /** names of selected lookup-view targets when the source's first column is not the primary name attribute */
-    lookupWarningViews: string[];
+    lookupBlockedViews: string[];
     primaryNameAttribute: string;
     isCopying: boolean;
     results: CopyResultItem[];
@@ -19,7 +19,7 @@ export function CopyActionsBar({
     options,
     sourceView,
     targetCount,
-    lookupWarningViews,
+    lookupBlockedViews,
     primaryNameAttribute,
     isCopying,
     results,
@@ -29,19 +29,19 @@ export function CopyActionsBar({
     onReset,
 }: CopyActionsBarProps) {
     const nothingToCopy = !options.columnLayout && !options.sortOrder && !options.components;
-    const canCopy = !!sourceView && targetCount > 0 && !nothingToCopy && !isCopying;
+    const canCopy = !!sourceView && targetCount > 0 && lookupBlockedViews.length === 0 && !nothingToCopy && !isCopying;
 
     return (
         <section className="panel copy-actions-bar">
-            {lookupWarningViews.length > 0 && (
+            {lookupBlockedViews.length > 0 && (
                 <div className="warning-box" role="alert">
-                    <strong>Lookup view warning</strong>
+                    <strong>Lookup view update blocked</strong>
                     <p>
                         A lookup view should always have <code>{primaryNameAttribute}</code> (the primary name column) as its <em>first</em> column, otherwise lookups will have difficulty working on
-                        forms. The source layout's first column is different, and it would be applied to:
+                        forms. The source layout's first column is different, so the column layout cannot be applied to:
                     </p>
                     <ul>
-                        {lookupWarningViews.map((name) => (
+                        {lookupBlockedViews.map((name) => (
                             <li key={name}>{name}</li>
                         ))}
                     </ul>

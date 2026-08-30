@@ -70,6 +70,16 @@ export function isLookupView(view: Pick<ViewInfo, "querytype">): boolean {
     return view.querytype === QUERY_TYPE.LOOKUP_VIEW;
 }
 
+/** Grid components are not supported by personal or special-purpose search views. */
+export function supportsComponents(view: Pick<ViewInfo, "querytype" | "isPersonal">): boolean {
+    return (
+        !view.isPersonal &&
+        view.querytype !== QUERY_TYPE.ADVANCED_SEARCH &&
+        view.querytype !== QUERY_TYPE.QUICK_FIND_SEARCH &&
+        view.querytype !== QUERY_TYPE.LOOKUP_VIEW
+    );
+}
+
 /** Sort order used to present views: default public first, then public, then the rest, personal last */
 export function viewTypeRank(view: Pick<ViewInfo, "querytype" | "isDefault" | "isPersonal">): number {
     if (view.isPersonal) return 90;

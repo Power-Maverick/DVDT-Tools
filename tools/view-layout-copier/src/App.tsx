@@ -6,12 +6,42 @@ import { SolutionPicker } from "./components/SolutionPicker";
 import { TableSidebar } from "./components/TableSidebar";
 import { ViewListPanel } from "./components/ViewListPanel";
 import { CopyOptions, CopyResultItem, Solution, TableInfo, ViewInfo } from "./models/interfaces";
-import { isLookupView, viewTypeRank } from "./models/viewTypes";
+import { getViewTypeLabel, isLookupView, supportsComponents, viewTypeRank } from "./models/viewTypes";
 import { DataverseClient, ViewUpdatePayload } from "./utils/DataverseClient";
 import { buildTargetLayoutXml, mergeFetchXml, parseLayoutColumns } from "./utils/layoutUtils";
 import { version as APP_VERSION } from "../package.json";
 
 const client = new DataverseClient();
+const RECENT_SOLUTION_STORAGE_PREFIX = "pptb:view-layout-copier:recent-solution";
+
+function recentSolutionStorageKey(environmentUrl: string): string | null {
+    if (!environmentUrl) return null;
+    try {
+        return `${RECENT_SOLUTION_STORAGE_PREFIX}:${new URL(environmentUrl).origin}`;
+    } catch {
+        return `${RECENT_SOLUTION_STORAGE_PREFIX}:${environmentUrl}`;
+    }
+}
+
+function readRecentSolutionId(environmentUrl: string): string | null {
+    const key = recentSolutionStorageKey(environmentUrl);
+    if (!key) return null;
+    try {
+        return window.localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function saveRecentSolutionId(environmentUrl: string, solutionId: string): void {
+    const key = recentSolutionStorageKey(environmentUrl);
+    if (!key || !solutionId) return;
+    try {
+        window.localStorage.setItem(key, solutionId);
+    } catch {
+        // Browser storage is optional; preferred-solution fallback remains available.
+    }
+}
 
 function App() {
     const isDemoMode = (window as any).__PPTB_MOCK__ === true;
@@ -80,9 +110,11 @@ function App() {
                 return;
             }
 
+            let activeConnectionUrl = "";
             try {
                 const activeConnection = await window.toolboxAPI?.connections.getActiveConnection();
-                setConnectionUrl(activeConnection?.url || "");
+                activeConnectionUrl = activeConnection?.url || "";
+                setConnectionUrl(activeConnectionUrl);
             } catch (e) {
                 console.error("Failed to get connection:", e);
             }
@@ -92,10 +124,14 @@ function App() {
                 setSolutions(solutionList);
                 setTables(tableList);
 
-                // Default to the user's maker-portal preferred solution when it's one of the
-                // unmanaged solutions we can write to; otherwise fall back to the first
-                // alphabetically. Leaves "All tables" unselected only when no solutions exist.
-                const defaultSolutionId = solutionList.find((s) => s.id === preferredSolutionId)?.id ?? solutionList[0]?.id ?? "";
+                // Prefer the last solution selected in this environment, then the maker-portal
+                // preference, then the first unmanaged solution alphabetically.
+                const recentSolutionId = readRecentSolutionId(activeConnectionUrl);
+                const defaultSolutionId =
+                    solutionList.find((s) => s.id.toLowerCase() === recentSolutionId?.toLowerCase())?.id ??
+                    solutionList.find((s) => s.id.toLowerCase() === preferredSolutionId?.toLowerCase())?.id ??
+                    solutionList[0]?.id ??
+                    "";
                 if (defaultSolutionId) {
                     setSelectedSolutionId(defaultSolutionId);
                     setSolutionTableIds(await fetchSolutionTableIds(defaultSolutionId));
@@ -119,6 +155,7 @@ function App() {
             setSolutionTableIds(null);
             return;
         }
+        saveRecentSolutionId(connectionUrl, solutionId);
         setLoadingTables(true);
         const ids = await fetchSolutionTableIds(solutionId);
         setSolutionTableIds(ids);
@@ -189,8 +226,8 @@ function App() {
         });
     };
 
-    const lookupWarningViews = useMemo(() => {
-        if (!sourceView || !table) return [];
+    const lookupBlockedViews = useMemo(() => {
+        if (!options.columnLayout || !sourceView || !table) return [];
         let firstColumn = "";
         try {
             firstColumn = parseLayoutColumns(sourceView.layoutxml).filter((c) => !c.isHidden)[0]?.name ?? "";
@@ -199,10 +236,14 @@ function App() {
         }
         if (firstColumn === table.primaryNameAttribute) return [];
         return views.filter((v) => targetIds.has(v.id) && isLookupView(v)).map((v) => v.name);
-    }, [sourceView, table, targetIds, views]);
+    }, [options.columnLayout, sourceView, table, targetIds, views]);
 
     const handleCopy = async () => {
         if (!sourceView || !table || targetIds.size === 0) return;
+        if (lookupBlockedViews.length > 0) {
+            showError(`Copy blocked: lookup views must keep ${table.primaryNameAttribute} as their first column.`);
+            return;
+        }
 
         const targets = views.filter((v) => targetIds.has(v.id));
         const progress: CopyResultItem[] = targets.map((v) => ({ viewId: v.id, viewName: v.name, status: "pending" }));
@@ -249,12 +290,16 @@ function App() {
                     notes.push(`skipped sort on ${merge.droppedOrders.join(", ")} (related table not in target)`);
                 }
 
-                if (options.components && sourceView.layoutjson && !target.isPersonal) {
-                    payload.layoutjson = sourceView.layoutjson;
+                if (options.components && sourceView.layoutjson) {
+                    if (supportsComponents(target)) {
+                        payload.layoutjson = sourceView.layoutjson;
+                    } else {
+                        notes.push(`skipped components (${getViewTypeLabel(target)} does not support them)`);
+                    }
                 }
 
                 if (Object.keys(payload).length === 0) {
-                    progress[i] = { ...progress[i], status: "success", message: "Nothing to change" };
+                    progress[i] = { ...progress[i], status: "success", message: notes.length > 0 ? notes.join("; ") : "Nothing to change" };
                 } else {
                     await client.updateView(target, payload);
                     if (!target.isPersonal) systemViewUpdated = true;
@@ -380,7 +425,7 @@ function App() {
                             options={options}
                             sourceView={sourceView}
                             targetCount={targetIds.size}
-                            lookupWarningViews={lookupWarningViews}
+                            lookupBlockedViews={lookupBlockedViews}
                             primaryNameAttribute={table?.primaryNameAttribute ?? "name"}
                             isCopying={isCopying}
                             results={results}

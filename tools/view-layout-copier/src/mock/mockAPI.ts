@@ -664,6 +664,9 @@ export function installMockAPI(): void {
 
         async update(entityLogicalName: string, id: string, record: Record<string, unknown>): Promise<void> {
             await delay(500);
+            if (record.fetchxml && !record.returnedtypecode) {
+                throw new Error("Dataverse update failed: 0x80040216: An unexpected error occurred.");
+            }
             const view: any =
                 entityLogicalName === "savedquery" ? SYSTEM_VIEWS.find((v) => v.savedqueryid === id) : entityLogicalName === "userquery" ? PERSONAL_VIEWS.find((v) => v.userqueryid === id) : undefined;
             if (!view) {
