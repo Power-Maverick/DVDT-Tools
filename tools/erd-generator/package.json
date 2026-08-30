@@ -1,7 +1,7 @@
 {
   "name": "@power-maverick/tool-erd-generator",
   "displayName": "ERD Generator",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Graph-first Dataverse ERD editor with in-memory schema diffs, session sharing, and multi-format export",
   "icon": "icons/erdGenerator.svg",
   "contributors": [
