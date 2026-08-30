@@ -1,6 +1,38 @@
+- [Dataverse ERD Generator](#dataverse-erd-generator)
+    - [UI Preview](#ui-preview)
+    - [Features](#features)
+    - [Installation](#installation)
+    - [Development](#development)
+    - [Usage in ToolBox](#usage-in-toolbox)
+    - [Key Concepts](#key-concepts)
+        - [ToolBox API Integration](#toolbox-api-integration)
+        - [React Hooks](#react-hooks)
+        - [ERD Generation](#erd-generation)
+        - [Styling](#styling)
+    - [TypeScript](#typescript)
+    - [Building Diagrams](#building-diagrams)
+    - [Configuration Options](#configuration-options)
+    - [Output Formats](#output-formats)
+        - [Flow](#flow)
+        - [Mermaid](#mermaid)
+        - [PlantUML](#plantuml)
+        - [Draw.io](#drawio)
+    - [Session Management](#session-management)
+    - [CSP Configuration \& Exceptions](#csp-configuration--exceptions)
+    - [Troubleshooting](#troubleshooting)
+        - [Build Issues](#build-issues)
+        - [ToolBox Integration Issues](#toolbox-integration-issues)
+    - [Contributing](#contributing)
+    - [License](#license)
+    - [Support](#support)
+
 # Dataverse ERD Generator
 
 A PowerPlatform ToolBox tool for loading Dataverse solutions into a graph-first ERD editor, applying in-memory schema changes, and exporting diagrams in multiple formats.
+
+## UI Preview
+
+![ERD Generator demo](/assets/erdGenerator.gif)
 
 ## Features
 
@@ -203,6 +235,13 @@ The tool provides several configuration options:
 - Load a previously saved session
 - Share sessions by exporting a JSON file
 - Import shared sessions from JSON files
+
+## CSP Configuration & Exceptions
+
+The tool configures the following `cspExceptions` in `package.json`:
+
+- **`connect-src` → `https://www.plantuml.com`**: Used to fetch SVG/PNG preview images rendered by the PlantUML online encoder service when PlantUML diagram mode is selected.
+- **`frame-src` → `https://viewer.diagrams.net/`**: Used to embed the interactive diagrams.net viewer iframe for rendering visual previews of Draw.io / XML diagram formats.
 
 ## Troubleshooting
 
