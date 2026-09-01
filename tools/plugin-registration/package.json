@@ -1,7 +1,7 @@
 {
   "name": "@power-maverick/tool-plugin-registration",
   "displayName": "Plugin Registration",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Register and manage Dataverse plugin assemblies, custom workflow activities, SDK message processing steps, service endpoints, and webhooks",
   "icon": "icons/prt.svg",
   "contributors": [

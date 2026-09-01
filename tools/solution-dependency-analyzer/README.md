@@ -1,223 +1,207 @@
 # Solution Dependency Analyzer
 
-A powerful tool for analyzing and visualizing Dataverse solution dependencies with circular dependency detection and comprehensive reporting capabilities.
+Analyze and visualize Dataverse solution dependencies with circular dependency detection and comprehensive reporting.
+
+## Table of Contents
+
+- [Solution Dependency Analyzer](#solution-dependency-analyzer)
+    - [Table of Contents](#table-of-contents)
+    - [Features](#features)
+    - [Installation](#installation)
+    - [Development](#development)
+    - [Usage in ToolBox](#usage-in-toolbox)
+    - [Key Concepts](#key-concepts)
+        - [Dependency Analysis](#dependency-analysis)
+        - [Visualization Modes](#visualization-modes)
+        - [Circular Dependencies](#circular-dependencies)
+    - [Technical Stack](#technical-stack)
+    - [Troubleshooting](#troubleshooting)
+        - [Analysis Fails or Hangs](#analysis-fails-or-hangs)
+        - [Missing Components in Results](#missing-components-in-results)
+        - [Export Issues](#export-issues)
+        - [Circular Dependency Detection Issues](#circular-dependency-detection-issues)
+    - [Best Practices](#best-practices)
+    - [Contributing](#contributing)
+    - [License](#license)
+    - [Support](#support)
 
 ## Features
 
-### 🔍 Comprehensive Analysis
-- Scans all solution components (entities, forms, views, plugins, workflows, web resources, apps)
-- Identifies direct and indirect dependencies
+- ✅ React 18 with TypeScript
+- ✅ Vite for fast development and optimized builds
+- ✅ Comprehensive dependency scanning (all component types)
+- ✅ Direct and indirect dependency detection
+- ✅ Circular dependency chain detection and reporting
+- ✅ Missing reference highlighting
+- ✅ Multiple visualization modes (Tree, Graph, Summary)
+- ✅ Interactive hierarchical radial graph layout
+- ✅ Advanced filtering and search capabilities
+- ✅ Component type breakdown with visual indicators
+- ✅ Complexity scoring algorithm
+- ✅ Export capabilities (CSV and JSON)
+- ✅ Real-time analysis with progress tracking
+
+## Installation
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+## Development
+
+Run development server:
+
+```bash
+npm run dev
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+Preview production build:
+
+```bash
+npm run preview
+```
+
+## Usage in ToolBox
+
+1. Build the tool:
+
+    ```bash
+    npm run build
+    ```
+
+2. The built files will be in the `dist/` directory:
+    - `index.html` - Main entry point
+    - `index.js` - Bundled application
+    - `index.css` - Compiled styles
+
+3. Install the tool in Power Platform ToolBox through the UI
+
+4. Use Solution Dependency Analyzer:
+    - Select a solution to analyze
+    - Click "Analyze Dependencies" to scan
+    - View results in Tree, Graph, or Summary mode
+    - Use filters to focus on specific components
+    - Export results to CSV or JSON
+
+## Key Concepts
+
+### Dependency Analysis
+
+The tool scans all solution components and identifies:
+
+- **Direct Dependencies**: Components directly referenced by a component
+- **Indirect Dependencies**: Components referenced through other components
+- **Dependent By**: Components that reference the selected component
+- **Circular Dependencies**: Chains where component A depends on B, B depends on C, and C depends on A
+
+This helps identify:
+
+- Unused components (no dependencies)
+- Highly coupled components (many dependencies)
+- Risk factors before deleting components
+
+### Visualization Modes
+
+- **Tree View**: List-based hierarchical view with filtering and search
+- **Graph View**: Interactive radial layout showing dependency layers
+- **Summary Report**: Statistical overview and top components
+
+Each mode provides different insights into your solution structure.
+
+### Circular Dependencies
+
+Circular dependencies occur when components form dependency loops, which can cause issues during deployment or operations. The tool:
+
 - Detects circular dependency chains
-- Highlights missing references
+- Highlights affected components in red
+- Provides chain details for investigation
+- Helps plan refactoring to break cycles
 
-### 📊 Multiple Visualization Modes
-- **Tree View**: List-based view with quick filtering and search
-- **Graph View**: Interactive hierarchical radial layout visualization
-- **Summary Report**: Statistical overview with detailed metrics
+## Technical Stack
 
-### 📈 Advanced Reporting
-- Component type breakdown with visual bars
-- Most connected components analysis
-- Complexity scoring algorithm
-- Circular dependency chain details
-- Missing reference tracking
-
-### 💾 Export Capabilities
-- CSV export for spreadsheet analysis
-- JSON export with complete metadata
-- Includes all dependencies, links, and circular chains
-
-## Usage
-
-### 1. Solution Selection
-- Select a solution from the dropdown (filters available for managed/unmanaged)
-- View solution metadata including publisher and description
-- Click "Analyze Dependencies" to start scanning
-
-### 2. View Modes
-
-#### Tree View
-- Browse components as a searchable list
-- Each item shows dependency count and circular dependency indicators
-- Click any component to see detailed information
-- Use search and type filters to narrow results
-
-#### Graph View
-- Interactive hierarchical radial layout
-- Root components (no dependencies) at center
-- Each layer represents dependency depth
-- Pan and zoom controls for navigation
-- Click nodes to view details
-- Color-coded by component type and status:
-  - Purple: Entities
-  - Cyan: Forms  
-  - Blue: Views
-  - Red: Components with circular dependencies
-  - Orange: Missing references
-
-#### Summary Report
-- Statistical overview cards
-- Component type distribution
-- Top 5 most connected components
-- Circular dependency chains
-- Missing references list
-- Export options (CSV/JSON)
-
-### 3. Filtering & Search
-- **Search**: Filter by component name or logical name
-- **Type Filter**: Show specific component types only
-- Real-time filtering across all views
-
-### 4. Component Details
-- Click any component to view:
-  - Full name and type
-  - Logical identifier
-  - List of dependencies (components it depends on)
-  - Dependent by (components that depend on it)
-  - Circular dependency status and chain
-
-### 5. Exporting Results
-
-#### CSV Export
-Includes columns:
-- Asset ID
-- Name
-- Type
-- Logical Name
-- Dependencies count
-- Dependent By count
-- Has Circular Ref
-- Not Found status
-
-#### JSON Export
-Complete analysis data including:
-- Solution metadata
-- Full asset details with IDs
-- All dependency links
-- Circular dependency chains
-- Statistical summary
-
-## Component Type Mapping
-
-The analyzer recognizes these Dataverse component types:
-
-| Type Code | Component Type | Icon |
-|-----------|---------------|------|
-| 1 | Entity | 📦 |
-| 60 | Form | 📝 |
-| 26 | View | 👁️ |
-| 90 | Plugin | 🔌 |
-| 61 | Web Resource | 🌐 |
-| 29 | Workflow | ⚡ |
-| 80 | App | 📱 |
-
-## Understanding Complexity Score
-
-The complexity score helps assess solution maintainability:
-
-**Calculation**: `(Average Dependencies × 10) + (Circular Dependencies × 10)`
-
-- **0-50**: Low complexity, well-structured
-- **51-100**: Moderate complexity, manageable
-- **101-200**: High complexity, needs attention
-- **200+**: Very high complexity, refactoring recommended
-
-## Circular Dependencies
-
-⚠️ **Important**: Circular dependencies can cause:
-- Deployment issues
-- Unexpected behavior
-- Maintenance difficulties
-- Solution import failures
-
-When detected, the tool shows:
-- Number of circular chains
-- Complete dependency paths for each chain
-- Affected components highlighted in red
-
-## Technical Details
-
-### Dependency Extraction
-
-**Forms**: Extracts library dependencies from FormXML
-```xml
-<Library name="new_library" />
-```
-
-**Views**: Extracts entity dependencies from FetchXML
-```xml
-<entity name="account" />
-```
-
-**Other Components**: Parses metadata relationships
-
-### Layout Algorithm
-
-The graph uses a hierarchical radial sunburst layout:
-1. Identifies root nodes (no incoming dependencies)
-2. Performs BFS layering from roots
-3. Positions each layer in concentric circles
-4. Distributes nodes evenly around each circle
-5. Handles orphaned components by placing at center
-
-### Circular Detection
-
-Uses Tarjan's algorithm variant:
-- Depth-first traversal with active path tracking
-- Detects back edges indicating cycles
-- Extracts complete cycle paths
-- Marks all affected components
-
-## Integration
-
-This tool integrates with Power Platform Toolbox (PPTB) and uses:
-- `window.toolboxAPI` for connection management
-- `window.dataverseAPI` for Dataverse queries
-- Native file save and notification APIs
-
-## Best Practices
-
-1. **Before Export**: Always analyze managed solutions before exporting to identify issues
-2. **Circular Dependencies**: Address circular dependencies before moving to production
-3. **Missing References**: Investigate missing references as they may cause runtime errors
-4. **Regular Analysis**: Run analysis after major changes to track complexity growth
-5. **Documentation**: Export JSON for historical tracking and documentation
+- **React 18** with TypeScript
+- **Vite** for fast development and optimized production builds
+- **Fluent UI React Components** for modern UI
+- **PPTB API** for all Dataverse operations
+- **@pptb/types** - PPTB type definitions
 
 ## Troubleshooting
 
-### No Components Found
-- Ensure solution contains components
-- Check solution is visible (not hidden)
-- Verify connection to correct environment
+### Analysis Fails or Hangs
 
-### Missing Dependencies
-- Some dependencies may be in other solutions
-- System components may not be included
-- Check if referenced components exist
+**Issue**: Analysis takes a long time or fails to complete
 
-### Graph Performance
-- Large solutions (500+ components) may be slow
-- Use filters to reduce visible components
-- Tree view recommended for very large solutions
+**Solution**:
 
-## Version History
+- Try analyzing a smaller solution first
+- Check Dataverse environment performance
+- Review browser console for errors
+- Try refreshing and analyzing again
 
-### 1.0.0
-- Initial release
-- Multi-view interface (Tree, Graph, Summary)
-- Circular dependency detection
-- CSV/JSON export
-- Interactive hierarchical radial graph
-- Comprehensive statistics and reporting
+### Missing Components in Results
 
-## License
+**Issue**: Known components don't appear in analysis
 
-GPL-2.0
+**Solution**:
+
+- Verify components are part of the selected solution
+- Check Dataverse connection is working
+- Ensure you have permissions to read component metadata
+- Try analyzing solution again
+
+### Export Issues
+
+**Issue**: Export to CSV or JSON fails
+
+**Solution**:
+
+- Verify browser allows file downloads
+- Check disk space for file size
+- Try exporting smaller result sets first
+- Review console for detailed error messages
+
+### Circular Dependency Detection Issues
+
+**Issue**: Circular dependencies don't appear to be detected
+
+**Solution**:
+
+- Verify solution contains the circular components
+- Check component references are complete
+- Try refreshing analysis
+- Review component dependency chains manually
+
+## Best Practices
+
+1. **Analyze Before Deletion**: Always analyze before removing components
+2. **Break Cycles**: Refactor to eliminate circular dependencies
+3. **Document Structure**: Export results for documentation
+4. **Regular Audits**: Periodically analyze to identify coupling
+5. **Plan Migrations**: Use analysis to plan safer solutions
 
 ## Contributing
 
-Contributions welcome! Please submit issues and pull requests to the GitHub repository.
+Contributions are welcome! When contributing:
 
-## Credits
+1. Maintain PPTB integration patterns
+2. Keep webview bundle browser-only (no Node.js dependencies)
+3. Test in Power Platform ToolBox
+4. Update documentation as needed
+5. Follow existing code style
 
-Developed by Power Maverick for the Power Platform community.
+## License
+
+This project is licensed under the GPL-2.0 License - see the [LICENSE](../../LICENSE) file for details.
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/Power-Maverick/PPTB-Tools/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Power-Maverick/PPTB-Tools/discussions)

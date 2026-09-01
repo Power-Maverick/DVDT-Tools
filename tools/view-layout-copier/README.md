@@ -1,73 +1,220 @@
 # View Layout Copier
 
-A Power Platform ToolBox (PPTB) tool that copies the layout of one Dataverse view to multiple other views of the same table in a single operation.
+Copy the layout of one Dataverse view to multiple other views of the same table in a single operation.
 
-## Overview
+## Table of Contents
 
-View Layout Copier simplifies keeping view layouts consistent across a table. Instead of manually editing each view, pick a source view and apply its column layout, sort order, and components configuration to any number of target views at once — system views and personal views alike.
+- [View Layout Copier](#view-layout-copier)
+    - [UI Preview](#ui-preview)
+    - [Features](#features)
+    - [Installation](#installation)
+    - [Development](#development)
+    - [Usage in ToolBox](#usage-in-toolbox)
+    - [Key Concepts](#key-concepts)
+        - [Layout Components](#layout-components)
+        - [Copy Options](#copy-options)
+        - [Smart Query Merging](#smart-query-merging)
+    - [Technical Stack](#technical-stack)
+    - [Troubleshooting](#troubleshooting)
+    - [Contributing](#contributing)
+    - [License](#license)
+    - [Support](#support)
+
+## UI Preview
+
+![View Layout Copier demo](/assets/viewLayoutCopier.gif)
 
 ## Features
 
-- **Solution selector on launch**: Narrow the table list to an unmanaged solution (managed solutions are excluded — they can't be modified), or work across all tables. Defaults to the most recently selected solution for the current environment, then the user's maker-portal preference, then the first unmanaged solution alphabetically
-- **Persistent, searchable table list**: Search by display name *or* schema/logical name; the list is alphabetized by display name and stays available on the left for quick switching
-- **View types at a glance**: Every view is badged with its type — Default Public View, Public View, Personal View, Associated View, Advanced Find View, Quick Find View, Lookup View, and more
-- **Personal views included**: Copy to/from personal views (userquery) as well as system views (savedquery)
-- **Source layout preview**: See the source view's columns — order, display names, and relative widths — plus its sort order before copying
-- **Selective copying**: Choose what to copy (all enabled by default):
-  - **Column layout** — columns, order, and widths
-  - **Sort order** — replaces the targets' sorting
-  - **Components configuration** — custom controls / grid components (`layoutjson`); skipped for Quick Find, Lookup, Advanced Find, and personal views, which do not support them
-- **Filters are never copied**: Each target view keeps its own filter criteria by design
-- **Smart query merging**: Attributes referenced by the copied layout are added to the target's fetchxml automatically; related-table (link-entity) columns are carried over *without* their filters
-- **Lookup view safety block**: A lookup target cannot receive a column layout unless the table's primary name column is first, preventing broken lookup behavior on forms
-- **Single publish**: Customizations are published once per copy operation, not once per view
-- **Real-time progress**: Per-view status with details of what was changed
-
-## How to Use
-
-1. **Pick a solution** on the Tables tab to narrow the table list — the last solution used in the current environment is selected when available
-2. **Select a table** from the searchable list on the left
-3. **Choose the source view** whose layout you want to copy — its layout appears in the preview strip
-4. **Check the target views** to apply the layout to
-5. **Adjust the copy options** on the Configuration tab if needed, then click **Copy & publish** (pinned at the bottom of the left nav) — customizations are published automatically and the publish status is shown in the progress list
-
-## Technical Details
-
-- **Built with**: React 18 + TypeScript + Vite (no UI framework dependencies)
-- **PPTB Integration**: Uses `@pptb/types` (`window.dataverseAPI` / `window.toolboxAPI`)
-- **Dataverse**: Reads `savedquery`/`userquery`, merges `layoutxml`/`fetchxml`/`layoutjson`, publishes via `PublishXml`
-- **FetchXML updates**: Includes `returnedtypecode` with every FetchXML write, as required by Dataverse for Quick Find and other saved-query updates
-- **Theme aware**: Follows the PPTB light/dark theme
+- ✅ React 18 with TypeScript
+- ✅ Vite for fast development and optimized builds
+- ✅ Copy layout from one view to multiple target views
+- ✅ Support for system views and personal views
+- ✅ Solution-based table filtering
+- ✅ Searchable table list (display name and schema name)
+- ✅ View type badges (Public, Personal, Lookup, etc.)
+- ✅ Source layout preview (columns, order, widths, sort)
+- ✅ Selective copy options (layout, sort, components)
+- ✅ Smart FetchXML query merging
+- ✅ Lookup view safety validation
+- ✅ Single-operation publish
+- ✅ Real-time progress tracking
+- ✅ Theme-aware dark/light mode support
 
 ## Installation
 
-This tool is designed to be installed through Power Platform ToolBox. Follow the PPTB documentation for installing tools.
+Install dependencies:
+
+```bash
+npm install
+```
 
 ## Development
 
+Run development server:
+
 ```bash
-# Install dependencies
-npm install
-
-# Run development server (demo mode)
 npm run dev
+```
 
-# Build for production
+Build for production:
+
+```bash
 npm run build
 ```
 
-Each production build increments the package's patch version before bundling.
+Preview production build:
 
-When run locally outside PPTB (`npm run dev`), the tool starts in **demo mode** with an in-memory mock of the Dataverse API and sample tables/views, so the whole flow — including copying — can be exercised in a plain browser. Production builds require PPTB.
+```bash
+npm run preview
+```
+
+## Usage in ToolBox
+
+1. Build the tool:
+
+    ```bash
+    npm run build
+    ```
+
+2. The built files will be in the `dist/` directory:
+    - `index.html` - Main entry point
+    - `index.js` - Bundled application
+    - `index.css` - Compiled styles
+
+3. Install the tool in Power Platform ToolBox through the UI
+
+4. Use View Layout Copier:
+    - Select a solution (or work across all tables)
+    - Choose a source table from the searchable list
+    - Select the source view to copy layout from
+    - Preview the source layout (columns, order, widths)
+    - Check target views to receive the layout
+    - Adjust copy options as needed
+    - Click Copy & publish to apply changes
+
+## Key Concepts
+
+### Layout Components
+
+A view layout consists of:
+
+- **Column Layout**: Order, display names, and column widths
+- **Sort Order**: Primary and secondary sorting criteria
+- **Components Configuration**: Custom controls and grid components
+- **Filters**: Not copied—target views keep their existing filters
+
+The tool preserves all configuration except filters, which remain unchanged on target views.
+
+### Copy Options
+
+Choose what to copy during the operation:
+
+- **Column Layout** (enabled by default): Columns, order, and widths
+- **Sort Order** (enabled by default): Replaces target sort criteria
+- **Components Configuration** (enabled by default): Custom controls and grid components
+
+Note: Components configuration is skipped for Quick Find, Lookup, Advanced Find, and personal views.
+
+### Smart Query Merging
+
+When copying layout:
+
+- Attributes referenced by the source layout are automatically added to the target's FetchXML
+- Related-table (link-entity) columns are carried over without their filters
+- Each target view retains its own filter logic
+- Single publish operation applies all changes at once
+
+Safety checks prevent breaking lookup views by validating primary name column positioning.
+
+## Technical Stack
+
+- **React 18** with TypeScript
+- **Vite** for fast development and optimized production builds
+- **Fluent UI React Components** for modern UI
+- **PPTB API** for all Dataverse operations
+- **@pptb/types** - PPTB type definitions
+
+## Troubleshooting
+
+### Copy Operation Fails
+
+**Issue**: Error when copying layout to target views
+
+**Solution**:
+
+- Verify source view is fully loaded
+- Check target views are editable (unmanaged)
+- Ensure all target views are the same entity type
+- Try copying to fewer views at once
+
+### Layout Not Applied
+
+**Issue**: Source layout doesn't appear on target views
+
+**Solution**:
+
+- Verify copy options are correctly enabled
+- Check target views are published successfully
+- Refresh target views in Power Apps
+- Review console for error messages
+
+### Sort Order Not Copied
+
+**Issue**: Sort order from source view not applied
+
+**Solution**:
+
+- Verify "Sort order" option is enabled
+- Check source view has defined sort criteria
+- Ensure target views don't have conflicting sorts
+- Try copying sort separately from layout
+
+### Filters Appearing on Target
+
+**Issue**: Source filters appear on target views
+
+**Solution**:
+
+- Filters are intentionally NOT copied
+- Clear target view filters manually if needed
+- This behavior prevents unintended filtering
+- Use Smart Query Merging for attribute handling only
+
+### Component Configuration Issues
+
+**Issue**: Custom controls don't copy correctly
+
+**Solution**:
+
+- Verify source and target support components
+- Check component configuration is enabled
+- Note: Components skipped for Quick Find, Lookup, Advanced Find views
+- Try copying layout and components separately
+
+## Best Practices
+
+1. **Test First**: Copy to one test view before batch copying
+2. **Verify Source**: Preview source layout before copying
+3. **Batch Carefully**: Copy to related views (same entity, same purpose)
+4. **Document Changes**: Keep notes of what was copied and when
+5. **Backup Views**: Export view definitions before major changes
+
+## Contributing
+
+Contributions are welcome! When contributing:
+
+1. Maintain PPTB integration patterns
+2. Keep webview bundle browser-only (no Node.js dependencies)
+3. Test in Power Platform ToolBox
+4. Update documentation as needed
+5. Follow existing code style
 
 ## License
 
-GPL-2.0
+This project is licensed under the GPL-2.0 License - see the [LICENSE](../../LICENSE) file for details.
 
-## Author
+## Support
 
-Power Maverick
-
-## Reference
-
-This tool is inspired by the [XrmToolBox View Layout Replicator](https://github.com/MscrmTools/MsCrmTools.ViewLayoutReplicator) by MscrmTools.
+- **Issues**: [GitHub Issues](https://github.com/Power-Maverick/PPTB-Tools/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Power-Maverick/PPTB-Tools/discussions)

@@ -1,7 +1,7 @@
 {
   "name": "@power-maverick/tool-entity-field-catalog",
   "displayName": "Entity Field Catalog",
-  "version": "1.0.3",
+  "version": "1.1.1",
   "description": "Export entity and field metadata from Dataverse solutions to Excel with custom columns",
   "icon": "icons/fieldCatalog.svg",
   "contributors": [
@@ -44,7 +44,7 @@
   "dependencies": {
     "@fluentui/react-components": "^9.56.2",
     "@fluentui/react-icons": "^2.0.264",
-    "exceljs": "^4.4.0",
+    "exceljs": "^3.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -55,5 +55,8 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.9.3",
     "vite": "^6.0.7"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

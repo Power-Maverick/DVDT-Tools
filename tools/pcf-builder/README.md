@@ -1,40 +1,56 @@
 # PCF Builder
 
-A PowerPlatform ToolBox tool for building and managing Power Apps Component Framework (PCF) custom controls using React and Vite.
+Build and manage Power Apps Component Framework (PCF) custom controls using React and Vite.
+
+## Table of Contents
+
+- [PCF Builder](#pcf-builder)
+    - [Table of Contents](#table-of-contents)
+    - [Features](#features)
+    - [Installation](#installation)
+    - [Development](#development)
+    - [Usage in ToolBox](#usage-in-toolbox)
+    - [Key Concepts](#key-concepts)
+        - [PCF Control Creation](#pcf-control-creation)
+        - [ToolBox API Integration](#toolbox-api-integration)
+    - [Technical Stack](#technical-stack)
+    - [Troubleshooting](#troubleshooting)
+        - [Build Fails](#build-fails)
+        - [Control Not Loading](#control-not-loading)
+        - [Solution Package Issues](#solution-package-issues)
+        - [Permission Issues](#permission-issues)
+    - [Best Practices](#best-practices)
+    - [Contributing](#contributing)
+    - [License](#license)
+    - [Support](#support)
+    - [Configuration Options](#configuration-options)
+        - [Control Configuration](#control-configuration)
+        - [Solution Configuration](#solution-configuration)
+    - [Output Display](#output-display)
+    - [Troubleshooting](#troubleshooting-1)
+        - [Build Issues](#build-issues)
+        - [PPTB Integration Issues](#pptb-integration-issues)
+    - [Prerequisites](#prerequisites)
+    - [Features Not Included](#features-not-included)
+    - [Contributing](#contributing-1)
+    - [License](#license-1)
+    - [Support](#support-1)
+    - [Reference](#reference)
 
 ## Features
 
 - ✅ React 18 with TypeScript
-- ✅ Vite for fast development and building
-- ✅ Access to ToolBox API via `window.toolboxAPI`
-- ✅ PPTB-only integration (no DVDT support)
+- ✅ Vite for fast development and optimized builds
 - ✅ Create new PCF controls with visual interface
-- ✅ Edit existing PCF controls
-- ✅ Build and test PCF projects
-- ✅ Solution package creation
-- ✅ Support for Field and Dataset templates
-- ✅ Additional package integration (Fluent UI, React, etc.)
+- ✅ Edit existing PCF controls in your environment
+- ✅ Support for Field and Dataset control templates
+- ✅ Build and package PCF projects
+- ✅ Solution package creation and publishing
+- ✅ Integration with Fluent UI and React libraries
 - ✅ Command execution and output display
-
-## Structure
-
-```
-pcf-builder/
-├── src/
-│   ├── App.tsx               # Main React component
-│   ├── main.tsx              # Entry point
-│   ├── styles.css            # Global styles
-│   ├── models/
-│   │   └── interfaces.ts     # TypeScript interfaces
-│   ├── components/           # React components (future)
-│   ├── utils/                # Utility functions (future)
-│   └── types/                # Type definitions (future)
-├── index.html                # HTML template
-├── vite.config.ts            # Vite configuration
-├── package.json
-├── tsconfig.json
-└── README.md
-```
+- ✅ Full integration with Power Platform ToolBox API
+- ✅ Support for both managed and unmanaged solutions
+- ✅ Real-time validation and error reporting
 
 ## Installation
 
@@ -67,147 +83,149 @@ npm run preview
 ## Usage in ToolBox
 
 1. Build the tool:
-   ```bash
-   npm run build
-   ```
+
+    ```bash
+    npm run build
+    ```
 
 2. The built files will be in the `dist/` directory:
-   - `index.html` - Main entry point
-   - `index.js` - Bundled application
-   - `index.css` - Compiled styles
+    - `index.html` - Main entry point
+    - `index.js` - Bundled application
+    - `index.css` - Compiled styles
 
-3. Install the tool in PowerPlatform ToolBox through the UI or programmatically
+3. Install the tool in Power Platform ToolBox through the UI
+
+4. Use PCF Builder:
+    - Create new PCF controls with the visual interface
+    - Edit existing controls in your environment
+    - Build and test projects locally
+    - Create solution packages for deployment
 
 ## Key Concepts
 
-### ToolBox API Integration
-
-The tool integrates with PowerPlatform ToolBox via `window.toolboxAPI`:
-
-```typescript
-// Get active connection
-const connection = await window.toolboxAPI.connections.getActiveConnection();
-
-// Show notification
-await window.toolboxAPI.showNotification({
-  title: "Success",
-  body: "Operation completed successfully",
-  type: "success"
-});
-
-// Execute terminal command
-const result = await window.toolboxAPI.terminal.executeCommand(command);
-
-// File system operations
-const folder = await window.toolboxAPI.fileSystem.selectFolder();
-const file = await window.toolboxAPI.fileSystem.selectFile();
-```
-
-**Important**: This tool is designed exclusively for PPTB and does not support DVDT (VS Code) integration.
-
-### React Hooks
-
-The tool demonstrates:
-
-- `useState` for managing component state
-- `useEffect` for initialization and side effects  
-- Type-safe event handling with TypeScript
-- PPTB API integration patterns
-
 ### PCF Control Creation
 
-The tool supports creating PCF controls with:
+PCF (Power Apps Component Framework) controls enable custom functionality in model-driven apps and canvas apps. The tool supports creating:
 
-1. **Namespace** - Your organization/project namespace
-2. **Control Name** - Technical name for the control
-3. **Display Name** - User-friendly name (optional)
-4. **Description** - Brief description (optional)
-5. **Control Type** - Standard or Virtual
-6. **Template** - Field (single field) or Dataset (grid)
-7. **Additional Packages** - Optional npm packages (Fluent UI, React, etc.)
+- **Field Controls**: Display and edit data in a single field
+- **Dataset Controls**: Display data in a grid or list format
 
-Example command generated:
-```bash
-pac pcf init --namespace Contoso --name MyControl --template field
-```
+When creating a control, specify:
 
-### Building and Testing
+- Namespace (your organization prefix)
+- Control Name (technical identifier)
+- Display Name (user-friendly name)
+- Control Template (Field or Dataset)
 
-The tool provides buttons to:
-- **Build Project** - Runs `npm run build` in the project directory
-- **Test Project** - Runs `npm start` to launch the test harness
+### ToolBox API Integration
 
-### Solution Package Creation
+The tool integrates with Power Platform ToolBox API for:
 
-Create solution packages with:
-- **Publisher Name** - Name of the publisher
-- **Publisher Prefix** - Short prefix for the publisher
-- **Publisher Friendly Name** - Human-readable publisher name (optional)
+- Project file management
+- Terminal command execution
+- Real-time output display
+- Solution package handling
+- Configuration management
 
-The tool will:
-1. Initialize a solution with `pac solution init`
-2. Add PCF reference with `pac solution add-reference`
+Key API methods:
 
-### Styling
+- `window.toolboxAPI.connections.getActiveConnection()` - Get active connection
+- `window.toolboxAPI.terminal.executeCommand()` - Execute CLI commands
+- `window.toolboxAPI.showNotification()` - Display notifications
 
-Uses CSS with modern features:
+## Technical Stack
 
-- CSS Grid for layouts
-- Flexbox for alignment
-- Gradient backgrounds
-- Responsive design
-- Clean, professional UI matching PPTB style
+- **React 18** with TypeScript
+- **Vite** for fast development and optimized production builds
+- **Fluent UI React Components** for modern, accessible UI
+- **Power Apps CLI** for PCF operations
+- **@pptb/types** - PPTB type definitions
 
-## TypeScript
+## Troubleshooting
 
-Full TypeScript support with:
+### Build Fails
 
-- Type declarations for ToolBox API
-- Strict type checking
-- Modern ES2020 features
-- React JSX types
-- PCF-specific types
+**Issue**: npm run build fails with errors
 
-## PCF Workflow
+**Solution**:
 
-The typical workflow:
+- Verify Node.js version (18+ required)
+- Check package.json dependencies are installed
+- Review error messages for missing dependencies
+- Try npm install again
 
-1. **Create Control**: Use "New Control" tab to initialize a PCF project
-2. **Edit Control**: Open the project folder to build and test
-3. **Build**: Compile the control with `npm run build`
-4. **Test**: Launch test harness with `npm start`
-5. **Solution**: Create a solution package for deployment
-6. **Deploy**: Use PPTB's deployment features or Power Apps CLI
+### Control Not Loading
 
-## Command Execution
+**Issue**: PCF control not loading in test harness
 
-All commands are executed through PPTB's terminal API:
+**Solution**:
 
-```typescript
-const result = await window.toolboxAPI.terminal.executeCommand(command);
-if (result.success) {
-  // Handle success
-} else {
-  // Handle error
-}
-```
+- Verify control is built correctly (npm run build)
+- Check manifest.xml configuration
+- Ensure control is registered in solution properly
+- Review browser console for errors
 
-Commands include:
-- `pac pcf init` - Initialize PCF control
-- `npm run build` - Build the control
-- `npm start` - Start test harness
-- `pac solution init` - Create solution
-- `pac solution add-reference` - Add PCF to solution
+### Solution Package Issues
+
+**Issue**: Solution package creation fails
+
+**Solution**:
+
+- Verify all prerequisites are installed (Power Apps CLI)
+- Check publisher name format (no spaces, special characters)
+- Ensure solution folder structure is correct
+- Try running pac solution init manually
+
+### Permission Issues
+
+**Issue**: Cannot modify solution or deploy control
+
+**Solution**:
+
+- Verify you have appropriate Dataverse permissions
+- Check connection context is correct
+- Ensure solution is unmanaged
+- Verify publisher is in your organization
+
+## Best Practices
+
+1. **Namespace Convention**: Use your organization prefix (e.g., Contoso.Controls)
+2. **Component Reusability**: Build controls as composable, testable components
+3. **TypeScript**: Use strict typing for better code quality
+4. **Testing**: Test controls thoroughly with sample data
+5. **Documentation**: Document control purpose and configuration options
+6. **Versioning**: Maintain version consistency with semantic versioning
+
+## Contributing
+
+Contributions are welcome! When contributing:
+
+1. Maintain PPTB integration patterns
+2. Keep webview bundle browser-only (no Node.js dependencies)
+3. Test in Power Platform ToolBox
+4. Update documentation as needed
+5. Follow existing code style
+
+## License
+
+This project is licensed under the GPL-2.0 License - see the [LICENSE](../../LICENSE) file for details.
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/Power-Maverick/PPTB-Tools/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Power-Maverick/PPTB-Tools/discussions)
 
 ## Configuration Options
 
 ### Control Configuration
+
 - Namespace, name, display name, description
 - Control type (standard/virtual)
 - Template (field/dataset)
 - Additional npm packages
 
 ### Solution Configuration
+
 - Publisher name and prefix
 - Publisher friendly name
 - Solution version (auto-managed)
@@ -215,6 +233,7 @@ Commands include:
 ## Output Display
 
 All command outputs are displayed in a formatted pre-block with:
+
 - Syntax highlighting
 - Scrollable area
 - Copy-friendly formatting
@@ -225,6 +244,7 @@ All command outputs are displayed in a formatted pre-block with:
 ### Build Issues
 
 If builds fail, ensure:
+
 - Node.js and npm are installed
 - Power Apps CLI (pac) is installed
 - Project folder is valid
@@ -233,6 +253,7 @@ If builds fail, ensure:
 ### PPTB Integration Issues
 
 Check:
+
 1. `window.toolboxAPI` is available
 2. Tool is running inside PPTB
 3. Active connection is established
@@ -249,6 +270,7 @@ Before using this tool, ensure you have:
 ## Features Not Included
 
 This tool provides a visual interface for PCF development but does NOT include:
+
 - Direct code editing (use your preferred IDE)
 - Visual Studio integration (use external tools)
 - Direct deployment to environments (use PPTB deployment features)
@@ -276,5 +298,6 @@ This project is licensed under the GPL-2.0 License - see the [LICENSE](../../LIC
 ## Reference
 
 This tool is based on the PCF Custom Control Builder for XrmToolBox:
+
 - Reference: [PCF-CustomControlBuilder](https://github.com/Power-Maverick/PCF-CustomControlBuilder)
 - Adapted for PPTB with React + TypeScript + Vite stack

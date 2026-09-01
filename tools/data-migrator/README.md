@@ -2,18 +2,101 @@
 
 Migrate data from one Dataverse environment to another with intelligent auto-mapping and smart operations.
 
-## Overview
+## Table of Contents
 
-The Data Migrator is a React-based tool designed exclusively for Power Platform ToolBox (PPTB) that enables seamless data transfer between Dataverse environments with advanced features:
+- [Data Migrator](#data-migrator)
+    - [UI Preview](#ui-preview)
+    - [Features](#features)
+    - [Installation](#installation)
+    - [Development](#development)
+    - [Usage in ToolBox](#usage-in-toolbox)
+    - [Key Concepts](#key-concepts)
+        - [Auto-Mapping](#auto-mapping)
+        - [Migration Operations](#migration-operations)
+        - [Lookup Field Handling](#lookup-field-handling)
+    - [Technical Stack](#technical-stack)
+    - [Configuration](#configuration)
+    - [Troubleshooting](#troubleshooting)
+    - [Contributing](#contributing)
+    - [License](#license)
+    - [Support](#support)
 
-- **Auto-Mapping**: Automatically map users, teams, and business units between environments
-- **Smart Operations**: Choose between create, update, or upsert operations
-- **Field Selection**: Select which fields to migrate
-- **Lookup Handling**: Intelligent mapping of lookup fields and references
-- **Progress Tracking**: Real-time progress monitoring with detailed status for each record
-- **Batch Processing**: Efficient batch processing for large data sets
+## UI Preview
+
+![Data Migrator demo](/assets/dataMigrator.gif)
 
 ## Features
+
+- ✅ React 18 with TypeScript
+- ✅ Vite for fast development and optimized builds
+- ✅ Auto-mapping of users, teams, and business units between environments
+- ✅ Smart migration operations: Create, Update, Upsert, Delete
+- ✅ Field selection and filtering (OData and FetchXML)
+- ✅ Real-time progress tracking with detailed statistics
+- ✅ Batch processing for large data sets (1-100 records per batch)
+- ✅ Preview before migration to verify operations
+- ✅ Lookup field mapping and transformation
+- ✅ Modern Fluent UI with responsive design
+- ✅ Step-based workflow with collapsible sections
+- ✅ Confidence-level indicators for auto-mapping results
+
+## Installation
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+## Development
+
+Run development server:
+
+```bash
+npm run dev
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+Preview production build:
+
+```bash
+npm run preview
+```
+
+## Usage in ToolBox
+
+1. Build the tool:
+
+    ```bash
+    npm run build
+    ```
+
+2. The built files will be in the `dist/` directory:
+    - `index.html` - Main entry point
+    - `index.js` - Bundled application
+    - `index.css` - Compiled styles
+
+3. Install the tool in Power Platform ToolBox through the UI
+
+4. Ensure you have:
+    - Primary connection: Source Dataverse environment
+    - Secondary connection: Target Dataverse environment
+
+5. Open Data Migrator and follow the step-by-step workflow:
+    - Select entity to migrate
+    - Choose fields to include
+    - Apply filters (OData or FetchXML)
+    - Select migration operation (Create/Update/Upsert/Delete)
+    - Auto-map system entities (optional)
+    - Preview data
+    - Start migration and monitor progress
+
+## Key Concepts
 
 ### Auto-Mapping
 
@@ -23,211 +106,112 @@ The tool automatically maps system entities between source and target environmen
 - **Teams**: Matched by name and team type
 - **Business Units**: Matched by name
 
-Each mapping includes a confidence level (high, medium, low) based on the matching criteria used.
+Each mapping includes a confidence level (high, medium, low) based on the matching criteria used. Always review auto-mapping results before starting migration.
 
-### Smart Migration Operations
+### Migration Operations
 
 Choose the operation that fits your scenario:
 
 - **Create**: Insert new records only (fails if record exists)
 - **Update**: Update existing records by primary key (requires records to exist)
-- **Delete**: Delete records from target environment by matching primary key
+- **Upsert**: Insert if new, update if exists
+- **Delete**: Remove records from target environment by matching primary key
 
-### Preview Before Migration
+### Lookup Field Handling
 
-- Preview data before migration to verify the operation
-- Shows action column (CREATE, UPDATE, DELETE)
-- Displays primary ID, primary name, and selected fields
-- Limited to first 100 records for quick review
-- Confirm before starting the actual migration
+Configure how lookup fields are processed during migration:
 
-### Field and Lookup Management
-
-- Select which fields to include in the migration
-- Fields are loaded on-demand after entity selection for better performance
-- Configure lookup field mapping strategies:
-  - **Auto-Map**: Automatically map system entities (users, teams, business units)
-  - **Skip**: Exclude the lookup field from migration
-
-### Flexible Filtering
-
-- **OData Filters**: Use OData syntax for simple filtering
-  - Example: `statecode eq 0 and createdon gt 2024-01-01`
-- **FetchXML Queries**: Use complete FetchXML for complex queries
-  - Supports advanced filtering, joins, and aggregations
-- Toggle between filter types with a modern selector
-
-### Advanced Options
-
-- **Filter Query**: Apply OData or FetchXML filters to select specific records
-- **Batch Size**: Control batch size for optimal performance (1-100 records per batch)
-
-### Modern, Fluid UI
-
-- **Step-based workflow**: Clear progression through configuration steps
-- **Collapsible sections**: Minimize scrolling with expandable step cards
-- **Modern design**: Gradient headers, card-based layout, smooth transitions
-- **Responsive**: Works well on different screen sizes
-- **Visual feedback**: Color-coded badges, progress indicators, and status displays
-
-### Progress Tracking
-
-Real-time monitoring with:
-
-- Overall progress bar
-- Statistics (total, successful, failed, skipped)
-- Batch processing status
-- Detailed record-by-record status with error messages
+- **Auto-Map**: Automatically map system entities (users, teams, business units)
+- **Skip**: Exclude the lookup field from migration
+- **Custom Mapping**: Define custom lookup transformations
 
 ## Technical Stack
 
 - **React 18** with TypeScript
-- **Fluent UI React Components** for modern UI
-- **Vite** for fast development and optimized builds
+- **Fluent UI React Components** for modern, accessible UI
+- **Vite** for fast development and optimized production builds
 - **PPTB API** for all Dataverse operations
-- **@pptb/types v1.0.16** - Latest PPTB type definitions
+- **@pptb/types** - PPTB type definitions
 
-## Installation
+## Configuration
 
-This tool is distributed as part of the PPTB-Tools monorepo and can be installed in Power Platform ToolBox.
+### Filter Options
 
-### Prerequisites
+- **OData Filters**: Use OData syntax for simple filtering
+    - Example: `statecode eq 0 and createdon gt 2024-01-01`
+- **FetchXML Queries**: Use complete FetchXML for complex queries
+    - Supports advanced filtering, joins, and aggregations
 
-- Node.js >= 18.0.0
-- npm >= 9.0.0
+### Batch Settings
 
-### Build
-
-```bash
-cd tools/data-migrator
-npm install
-npm run build
-```
-
-The build output will be in the `dist` directory.
-
-## Usage in PPTB
-
-The tool follows a step-by-step workflow:
-
-1. **Install the tool** in Power Platform ToolBox
-2. **Connect to your source environment** (primary connection)
-3. **Select a secondary connection** as the target environment
-4. **Open the Data Migrator tool**
-5. The tool will display both connections:
-   - Source (Primary): Your source environment
-   - Target (Secondary): Your target environment
-
-### Migration Workflow
-
-6. **Select an entity** to migrate
-   - Entity data (without fields) loads initially for faster performance
-7. **Wait for fields to load** automatically after entity selection
-8. **Select fields** to include in the migration
-9. **Add filter** (optional) to select a subset of records using OData syntax
-10. **Choose migration operation** from settings:
-    - **Create**: Insert new records only
-    - **Update**: Update existing records by primary key
-    - **Delete**: Delete records from target environment
-11. **Set batch size** (max 100 records per batch)
-12. **Auto-map system entities** (optional):
-    - Click "Auto-Map System Entities" to map users, teams, and business units
-    - Review the auto-mapping results
-13. **Preview the data** to be migrated:
-    - Shows Action column (CREATE, UPDATE, DELETE)
-    - Displays primary ID and primary name
-    - Shows selected fields
-    - Limited to first 100 records for preview
-14. **Start Migration** from the preview and monitor progress
-
-## Important Notes
-
-- **Secondary Connection Required**: This tool requires both a primary (source) and secondary (target) connection to be configured in PPTB
-- **Source Environment**: Data is read from the primary connection
-- **Target Environment**: Data is written to the secondary connection
-- **Auto-Mapping**: Users, teams, and business units are mapped between source and target environments
-- **Preview First**: Always preview data before starting migration to verify the operation and data
-- **Batch Limit**: Maximum batch size is 100 records for optimal performance
-
-## Use Cases
-
-- **Environment Refresh**: Migrate configuration or transactional data after environment refresh
-- **Dev to Test Migration**: Move test data from development to test environments
-- **Cross-Tenant Migration**: Transfer data between different tenants with user/team mapping
-- **Partial Data Migration**: Use filters to migrate specific records
-- **Data Deletion**: Remove specific records from target environment based on source data
-
-## Architecture
-
-### Components
-
-- **App.tsx**: Main application component and state management
-- **EntitySelector**: Entity selection dropdown
-- **OperationSelector**: Migration operation selection
-- **FieldSelector**: Field selection with bulk actions
-- **LookupMapper**: Lookup field mapping configuration
-- **MigrationProgress**: Real-time progress display
-- **AutoMappingPanel**: Auto-mapping results modal
-
-### Utilities
-
-- **DataverseClient**: Handles all Dataverse API interactions via PPTB API
-- **MigrationEngine**: Core migration logic with auto-mapping and transformation
-
-## Design Philosophy
-
-The UI follows a **modern minimalist approach**:
-
-- No header or unnecessary chrome
-- Compact layout to minimize scrolling
-- Clear visual hierarchy
-- Progressive disclosure (options appear as needed)
-- Real-time feedback
-- Clean, professional appearance
-
-## Reference
-
-This tool is inspired by [Colso.Xrm.DataTransporter](https://github.com/bcolpaert/Colso.Xrm.DataTransporter) with enhancements for modern React, PPTB integration, and improved user experience.
-
-## Limitations
-
-- Primary key-based operations only (for update and upsert)
-- Lookup auto-mapping limited to system entities (users, teams, business units)
-- Requires same metadata schema in source and target environments
-- Large data sets may take time to migrate (monitor batch progress)
-
-## Best Practices
-
-1. **Test First**: Always test with a small data set first
-2. **Use Filters**: Use OData filters to migrate specific records
-3. **Check Mappings**: Review auto-mapping results before starting migration
-4. **Monitor Progress**: Watch for errors during migration
-5. **Backup Data**: Always backup target environment before migration
-6. **Same Metadata**: Ensure source and target have matching entity/field schemas
+- **Batch Size**: Control batch size for optimal performance (default: 50, max: 100 records)
+- **Progress Tracking**: Real-time monitoring with statistics (total, successful, failed, skipped)
 
 ## Troubleshooting
 
 ### Migration Fails
 
-- Check that target environment has the same entity/field structure
-- Verify required fields have values
+**Issue**: Migration operation fails with entity or field errors
+
+**Solution**:
+
+- Verify target environment has the same entity/field structure as source
+- Check that required fields have values in source data
 - Review error messages in the progress panel
+- Ensure user has appropriate permissions in both environments
 
 ### Lookup Mapping Issues
 
+**Issue**: Lookups are not being mapped correctly between environments
+
+**Solution**:
+
 - Run auto-mapping before starting migration
 - Verify users/teams/business units exist in target environment
-- Check that names match between environments
+- Check that entity and field names match between environments
+- Verify the primary key values exist in target
 
 ### Performance Issues
 
-- Reduce batch size for better stability
+**Issue**: Migration is slow or times out
+
+**Solution**:
+
+- Reduce batch size (try 25-50 records per batch)
 - Use filters to migrate fewer records at once
-- Check network connectivity
+- Check network connectivity and Dataverse performance
+- Monitor server-side logs for throttling
+
+### Connection Issues
+
+**Issue**: Cannot connect to secondary environment
+
+**Solution**:
+
+- Verify secondary connection is configured in PPTB
+- Check that connection has appropriate Dataverse permissions
+- Ensure both source and target environments are accessible
+- Verify credentials have not expired
+
+## Best Practices
+
+1. **Test First**: Always test with a small data set first
+2. **Use Filters**: Use OData/FetchXML filters to migrate specific records
+3. **Review Mappings**: Verify auto-mapping results before starting migration
+4. **Batch Processing**: Use appropriate batch sizes (50-100 records)
+5. **Backup First**: Always backup target environment before migration
+6. **Monitor Progress**: Watch for errors and statistics during migration
+7. **Verify Results**: Spot-check migrated records in target environment
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! When contributing:
+
+1. Maintain PPTB integration patterns
+2. Keep webview bundle browser-only (no Node.js dependencies)
+3. Test in Power Platform ToolBox
+4. Update documentation as needed
+5. Follow existing code style
 
 ## License
 
@@ -235,4 +219,5 @@ This project is licensed under the GPL-2.0 License - see the [LICENSE](../../LIC
 
 ## Support
 
-For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/Power-Maverick/PPTB-Tools).
+- **Issues**: [GitHub Issues](https://github.com/Power-Maverick/PPTB-Tools/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Power-Maverick/PPTB-Tools/discussions)

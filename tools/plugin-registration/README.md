@@ -1,116 +1,222 @@
 # Plugin Registration
 
-Register and manage Microsoft Dataverse plugin assemblies, custom workflow activities, SDK message processing steps, service endpoints, and webhooks. Exclusively for PPTB.
+Register and manage Microsoft Dataverse plugin assemblies, custom workflow activities, SDK message processing steps, service endpoints, and webhooks.
 
-## Overview
+## Table of Contents
 
-The Plugin Registration tool brings the classic Microsoft Dataverse Plugin Registration Tool experience directly into Power Platform ToolBox. It allows developers to register, update, and unregister plugin assemblies and their associated components without leaving PPTB.
+- [Plugin Registration](#plugin-registration)
+    - [UI Preview](#ui-preview)
+    - [Features](#features)
+    - [Installation](#installation)
+    - [Development](#development)
+    - [Usage in ToolBox](#usage-in-toolbox)
+    - [Key Concepts](#key-concepts)
+        - [Plugin Assemblies](#plugin-assemblies)
+        - [SDK Message Processing Steps](#sdk-message-processing-steps)
+        - [Service Endpoints](#service-endpoints)
+    - [Technical Stack](#technical-stack)
+    - [Troubleshooting](#troubleshooting)
+    - [Contributing](#contributing)
+    - [License](#license)
+    - [Support](#support)
 
-## Key Features
+## UI Preview
 
-- **React + TypeScript**: Modern component-based architecture with Vite build system
-- **PPTB-Only Integration**: Designed exclusively for Power Platform ToolBox (uses @pptb/types v1.0.20)
-- **Plugin Assembly Management**: Register, update, and unregister plugin assemblies (.dll files)
-- **Plugin Type Browsing**: View all plugin classes within each registered assembly
-- **Step Registration**: Register and manage SDK Message Processing Steps with full configuration including Unsecure Config, Secure Config, and Supported Deployment
-- **Step Images**: Register pre/post entity images for processing steps
-- **Enable/Disable Steps**: Toggle step activation status without removing them
-- **Service Endpoint Management**: Register and manage all 9 Dataverse contract types — One Way, Queue, REST, Two Way, Topic, Persistent Queue, Event Hub, Webhook, and Event Grid
-- **Webhook Management**: Register webhooks with HttpHeader, WebhookKey, or HttpQueryString authentication
-- **Endpoint Step Registration**: Register SDK message processing steps bound to service endpoints
-- **Tree View UI**: Hierarchical view of assemblies → plugin types → steps → images, plus service endpoints and their steps
-- **Plugins / Endpoints Filter**: Toolbar checkboxes to show or hide Plugins and Endpoints independently
-- **Dark/Light Theme Support**: Follows PPTB theme settings automatically
+![Plugin Registration demo](/assets/pluginRegistration.gif)
 
-## Use Cases
+## Features
 
-- Register custom plugin assemblies implementing `IPlugin`
-- Set up SDK message processing steps on standard Dataverse messages (Create, Update, Delete, etc.)
-- Configure pre/post entity images for plugin steps
-- Register custom workflow activities
-- Manage plugin step lifecycle (enable, disable, unregister)
-- Update plugin assemblies when a new version is compiled
-- Register webhooks and Azure Service Bus endpoints for event-driven integrations
-- Attach SDK message processing steps to service endpoints (webhook/Service Bus triggers)
-- Configure unsecure and secure configuration strings on plugin steps
+- ✅ React 18 with TypeScript
+- ✅ Vite for fast development and optimized builds
+- ✅ Register, update, and unregister plugin assemblies
+- ✅ Manage SDK Message Processing Steps with full configuration
+- ✅ Step Images support (pre/post entity images)
+- ✅ Enable/disable steps without removal
+- ✅ Service Endpoint Management (9 contract types supported)
+- ✅ Webhook management with multiple auth types
+- ✅ Custom workflow activities support
+- ✅ Hierarchical tree view UI for organization
+- ✅ Plugins/Endpoints filtering and toggling
+- ✅ Dark/light theme support
+- ✅ Unsecure and Secure Config management
 
-## UI
+## Installation
 
-The tool uses a split-panel layout:
-
-- **Left panel**: Tree view of all registered assemblies, their plugin types, processing steps, and images — followed by service endpoints and their steps
-- **Right panel**: Detailed information and action buttons for the selected item
-- **Toolbar filter**: Checkboxes to show/hide Plugins and Endpoints sections independently
-
-### Supported Actions
-
-| Selected Item | Available Actions |
-|---|---|
-| Assembly | Update Assembly, Unregister Assembly |
-| Plugin Type | Register Step |
-| Processing Step | Register Image, Enable, Disable, Update Step, Unregister Step |
-| Step Image | Update Image, Unregister Image |
-| Service Endpoint / Webhook | Register Step, Update, Unregister, Save Description |
-| Endpoint Step | Enable, Disable, Update Step, Unregister Step |
-
-## Getting Started
-
-### Prerequisites
-
-- Power Platform ToolBox (PPTB) with an active Dataverse connection
-- A compiled plugin assembly (.dll) built against the Dataverse SDK
-
-### Building
+Install dependencies:
 
 ```bash
-cd tools/plugin-registration
 npm install
-npm run build
 ```
 
-### Development
+## Development
+
+Run development server:
 
 ```bash
 npm run dev
 ```
 
-## Architecture
+Build for production:
 
+```bash
+npm run build
 ```
-src/
-├── components/
-│   ├── PluginTree.tsx                    # Tree view component (plugins + endpoints)
-│   ├── AssemblyDetails.tsx               # Assembly details & actions
-│   ├── PluginTypeDetails.tsx             # Plugin type details
-│   ├── StepDetails.tsx                   # Processing step details & actions
-│   ├── ImageDetails.tsx                  # Step image details & actions
-│   ├── ServiceEndpointDetails.tsx        # Service endpoint / webhook details & actions
-│   ├── RegisterAssemblyDialog.tsx        # Register/update assembly dialog
-│   ├── RegisterStepDialog.tsx            # Register/update step dialog (with config fields)
-│   ├── RegisterImageDialog.tsx           # Register/update image dialog
-│   ├── RegisterServiceEndpointDialog.tsx # Register/update service endpoint or webhook
-│   └── RegisterEndpointStepDialog.tsx    # Register step bound to a service endpoint
-├── models/
-│   └── interfaces.ts           # TypeScript interfaces
-├── utils/
-│   └── DataverseClient.ts      # Dataverse API wrapper
-├── App.tsx                     # Main application component
-├── main.tsx                    # Entry point with theme support
-└── styles.css                  # CSS with light/dark theme variables
+
+Preview production build:
+
+```bash
+npm run preview
 ```
+
+## Usage in ToolBox
+
+1. Build the tool:
+
+    ```bash
+    npm run build
+    ```
+
+2. The built files will be in the `dist/` directory:
+    - `index.html` - Main entry point
+    - `index.js` - Bundled application
+    - `index.css` - Compiled styles
+
+3. Install the tool in Power Platform ToolBox through the UI
+
+4. Use Plugin Registration:
+    - Register plugin assemblies by uploading .dll files
+    - Configure SDK Message Processing Steps
+    - Register pre/post entity images
+    - Manage service endpoints and webhooks
+    - Enable/disable steps for testing
+
+## Key Concepts
+
+### Plugin Assemblies
+
+Plugin assemblies are compiled .NET libraries (.dll files) that implement the Dataverse plugin interface. The tool allows you to:
+
+- **Register**: Upload a new assembly from your development environment
+- **Update**: Replace an existing assembly with a new version
+- **Unregister**: Remove an assembly (and its components)
+- **View Types**: See all plugin classes available in the assembly
+
+### SDK Message Processing Steps
+
+SDK Message Processing Steps (plugin steps) bind your plugin code to specific Dataverse messages and events:
+
+- **Message**: The Dataverse operation (Create, Update, Delete, etc.)
+- **Entity**: The table the message applies to
+- **Stage**: Pre-operation (before the transaction) or Post-operation (after)
+- **Execution Mode**: Synchronous or Asynchronous
+- **Unsecure Config**: Non-sensitive configuration passed to the plugin
+- **Secure Config**: Sensitive configuration (encrypted in Dataverse)
+
+### Service Endpoints
+
+Service Endpoints allow Dataverse to call external systems when events occur. Supported types:
+
+- **REST**: HTTP POST to a custom endpoint
+- **Webhook**: Secure webhook with authentication
+- **Service Bus**: Azure Service Bus (One Way, Queue, Topic)
+- **Event Hub**: Azure Event Hub
+- **Event Grid**: Azure Event Grid
+
+## Technical Stack
+
+- **React 18** with TypeScript
+- **Vite** for fast development and optimized production builds
+- **Fluent UI React Components** for modern UI
+- **PPTB API** for all Dataverse operations
+- **@pptb/types** - PPTB type definitions
+
+## Troubleshooting
+
+### Assembly Upload Fails
+
+**Issue**: Cannot upload or register plugin assembly
+
+**Solution**:
+
+- Verify .dll file is built against the correct Dataverse SDK version
+- Check that you have appropriate Dataverse permissions
+- Ensure assembly implements IPlugin correctly
+- Try uploading a smaller/simpler assembly first
+
+### Step Registration Issues
+
+**Issue**: Cannot register SDK Message Processing Step
+
+**Solution**:
+
+- Verify plugin assembly is registered first
+- Check that entity and message are valid
+- Ensure you have permissions on the plugin table
+- Verify stage selection (Pre vs Post operation)
+
+### Service Endpoint Issues
+
+**Issue**: Cannot register or test service endpoint
+
+**Solution**:
+
+- Verify endpoint URL is accessible and valid
+- Check authentication credentials are correct
+- Test endpoint availability manually first
+- Review webhook logs for failed deliveries
+
+### Permission Issues
+
+**Issue**: Operations fail with permission error
+
+**Solution**:
+
+- Verify you have system administrator or plugin registration admin role
+- Check connection context is correct
+- Ensure target organization is accessible
+- Verify solution context is correct
+
+## Best Practices
+
+1. **Version Control**: Maintain version numbers for plugin assemblies
+2. **Test Environments**: Always test plugins thoroughly before production
+3. **Configuration**: Use Secure Config for sensitive data (API keys, passwords)
+4. **Error Handling**: Implement comprehensive error handling in plugins
+5. **Logging**: Use plugin trace logs for debugging
+6. **Step Order**: Configure step execution order carefully
+7. **Filtering**: Use step filtering to optimize performance
+
+## Contributing
+
+Contributions are welcome! When contributing:
+
+1. Maintain PPTB integration patterns
+2. Keep webview bundle browser-only (no Node.js dependencies)
+3. Test in Power Platform ToolBox
+4. Update documentation as needed
+5. Follow existing code style
+
+## License
+
+This project is licensed under the GPL-2.0 License - see the [LICENSE](../../LICENSE) file for details.
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/Power-Maverick/PPTB-Tools/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Power-Maverick/PPTB-Tools/discussions)
 
 ## Dataverse Entities Used
 
-| Entity | Purpose |
-|---|---|
-| `pluginassembly` | Stores compiled assembly metadata and content |
-| `plugintype` | Stores plugin class information within an assembly |
-| `sdkmessageprocessingstep` | Stores step configuration (message, entity, stage, mode) |
-| `sdkmessageprocessingstepimage` | Stores pre/post entity images for steps |
-| `sdkmessage` | SDK messages (Create, Update, Delete, etc.) |
-| `sdkmessagefilter` | Entity-specific filters for messages |
-| `serviceendpoint` | Stores webhook and Service Bus endpoint configuration |
-| `sdkmessageprocessingstepsecureconfig` | Stores secure configuration strings for steps |
+| Entity                                 | Purpose                                                  |
+| -------------------------------------- | -------------------------------------------------------- |
+| `pluginassembly`                       | Stores compiled assembly metadata and content            |
+| `plugintype`                           | Stores plugin class information within an assembly       |
+| `sdkmessageprocessingstep`             | Stores step configuration (message, entity, stage, mode) |
+| `sdkmessageprocessingstepimage`        | Stores pre/post entity images for steps                  |
+| `sdkmessage`                           | SDK messages (Create, Update, Delete, etc.)              |
+| `sdkmessagefilter`                     | Entity-specific filters for messages                     |
+| `serviceendpoint`                      | Stores webhook and Service Bus endpoint configuration    |
+| `sdkmessageprocessingstepsecureconfig` | Stores secure configuration strings for steps            |
 
 ## Reference
 

@@ -1,82 +1,226 @@
 # Entity Field Catalog
 
-Export entity and field metadata from Dataverse solutions to Excel format.
+Export entity and field metadata from Dataverse solutions to Excel format with comprehensive documentation.
 
-## Overview
+## Table of Contents
 
-The Entity Field Catalog is a React-based tool designed exclusively for Power Platform ToolBox (PPTB) that allows users to:
+- [Entity Field Catalog](#entity-field-catalog)
+    - [Table of Contents](#table-of-contents)
+    - [UI Preview](#ui-preview)
+    - [Features](#features)
+    - [Installation](#installation)
+    - [Development](#development)
+    - [Usage in ToolBox](#usage-in-toolbox)
+    - [Key Concepts](#key-concepts)
+        - [Metadata Export](#metadata-export)
+        - [Export Formats](#export-formats)
+    - [Technical Stack](#technical-stack)
+    - [Configuration](#configuration)
+        - [Export Options](#export-options)
+        - [Field Properties](#field-properties)
+    - [Troubleshooting](#troubleshooting)
+        - [No Entities Appearing](#no-entities-appearing)
+        - [Export Fails](#export-fails)
+        - [Excel File Issues](#excel-file-issues)
+        - [CSV Export Issues](#csv-export-issues)
+    - [Best Practices](#best-practices)
+    - [Contributing](#contributing)
+    - [License](#license)
+    - [Support](#support)
+        - [Field Details (per entity)](#field-details-per-entity)
+    - [Development](#development-1)
+    - [License](#license-1)
+    - [Contributing](#contributing-1)
+    - [Author](#author)
 
-- Select a Dataverse solution
-- Choose multiple entities from that solution
-- Export comprehensive entity and field metadata to Excel (.xlsx) formats
+## UI Preview
+
+![Entity Field Catalog Screenshot](/assets/entityFieldCatalog.png)
 
 ## Features
 
-- **Modern Fluent UI Design**: Built with Microsoft's Fluent UI React components for a consistent, professional look
-- **Multi-Entity Selection**: Select one or multiple entities to export at once
-- **Comprehensive Metadata Export**: Exports entity and field information including:
-    - Entity logical name, display name, schema name, and description
-    - Field logical name, display name, schema name, type, and description
-    - Field properties: isPrimaryId, isPrimaryName, isRequired
-- **Multiple Export Formats**:
-    - Excel (.xlsx) - Entities tab plus one tab per entity
-    - CSV (.zip) - Entities summary CSV plus one CSV per entity, packaged together
-- **PPTB Integration**: Full integration with Power Platform ToolBox API for seamless connectivity
+- ✅ React 18 with TypeScript
+- ✅ Vite for fast development and optimized builds
+- ✅ Modern Fluent UI design with responsive layout
+- ✅ Multi-entity selection for batch export
+- ✅ Multiple export formats: Excel (.xlsx) and CSV (.zip)
+- ✅ Comprehensive metadata export (entities, fields, properties)
+- ✅ Solution-based entity filtering
+- ✅ Field properties included (primary ID, primary name, required)
+- ✅ Real-time entity selection with checkboxes
+- ✅ Export progress tracking
+- ✅ Full integration with Dataverse API via PPTB
+
+## Installation
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+## Development
+
+Run development server:
+
+```bash
+npm run dev
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+Preview production build:
+
+```bash
+npm run preview
+```
+
+## Usage in ToolBox
+
+1. Build the tool:
+
+    ```bash
+    npm run build
+    ```
+
+2. The built files will be in the `dist/` directory:
+    - `index.html` - Main entry point
+    - `index.js` - Bundled application
+    - `index.css` - Compiled styles
+
+3. Install the tool in Power Platform ToolBox through the UI
+
+4. Use Entity Field Catalog:
+    - Select a solution from the dropdown
+    - Check the entities you want to export
+    - Choose your export format (Excel or CSV)
+    - Click "Export" to download the file
+
+## Key Concepts
+
+### Metadata Export
+
+Exports comprehensive metadata about entities and their fields:
+
+- **Entity Information**: Logical name, display name, schema name, description, primary ID/name attributes
+- **Field Information**: Logical name, display name, schema name, data type, description
+- **Field Properties**: Is primary ID, is primary name, is required flag
+
+### Export Formats
+
+Choose between two export options:
+
+- **Excel (.xlsx)**: Single workbook with "Entities" summary tab plus one tab per entity
+- **CSV (.zip)**: Compressed archive containing Entities.csv plus one CSV file per entity
+
+Both formats contain identical data, choose based on your preference and tool compatibility.
 
 ## Technical Stack
 
 - **React 18** with TypeScript
 - **Fluent UI React Components** for modern, accessible UI
-- **Vite** for fast development and optimized builds
-- **ExcelJS** for secure Excel export functionality
-- **PPTB API** for all Dataverse operations (no direct HTTP calls)
+- **Vite** for fast development and optimized production builds
+- **ExcelJS** for secure Excel export without external dependencies
+- **PPTB API** for all Dataverse operations
 
-## Installation
+## Configuration
 
-This tool is distributed as part of the PPTB-Tools monorepo and can be installed in Power Platform ToolBox.
+### Export Options
 
-### Prerequisites
+- **Excel Format**: Professional workbook suitable for documentation and analysis
+- **CSV Format**: Portable format for data integration and processing
+- **Multiple Entities**: Select multiple entities to export in one operation
 
-- Node.js >= 18.0.0
-- npm >= 9.0.0
+### Field Properties
 
-### Build
+The export includes these field attributes:
 
-```bash
-cd tools/entity-field-catalog
-npm install
-npm run build
-```
+| Attribute    | Description                               |
+| ------------ | ----------------------------------------- |
+| Display Name | Human-readable field name                 |
+| Logical Name | Dataverse logical identifier              |
+| Schema Name  | Database schema name                      |
+| Type         | Field data type                           |
+| Primary ID   | Whether field is the primary key          |
+| Primary Name | Whether field is the primary display name |
+| Required     | Whether field is required                 |
 
-## Usage in PPTB
+## Troubleshooting
 
-1. Install the tool in Power Platform ToolBox
-2. Connect to your Dataverse environment
-3. Open the Entity Field Catalog tool
-4. Select a solution from the dropdown
-5. Check the entities you want to export
-6. Choose your export format (Excel or CSV)
-7. Click "Export" to download the file
+### No Entities Appearing
 
-## Export Format
+**Issue**: Solution dropdown shows solutions but entity list is empty
 
-Both export options share the same structure:
+**Solution**:
 
-- **Excel**: One `Entities` tab with consolidated info and an additional tab per entity for field details.
-- **CSV**: A `.zip` file containing `Entities.csv` plus a separate CSV for each entity's fields.
+- Verify the solution contains entities (some solutions may be empty)
+- Try selecting a different solution
+- Check that you have appropriate permissions to read solution metadata
+- Refresh the tool
 
-### Entities Summary
+### Export Fails
 
-| Column                 | Description                       |
-| ---------------------- | --------------------------------- |
-| Entity Display Name    | Human-friendly name of the entity |
-| Entity Logical Name    | Dataverse logical name            |
-| Entity Schema Name     | Dataverse schema name             |
-| Primary ID Attribute   | Primary key column                |
-| Primary Name Attribute | Primary name column               |
-| Object Type Code       | Numeric identifier (if available) |
-| Description            | Entity description                |
-| Field Count            | Number of fields exported         |
+**Issue**: Export operation fails or produces empty files
+
+**Solution**:
+
+- Verify you have read permissions on all selected entities and fields
+- Ensure entity metadata is accessible in Dataverse
+- Try exporting a single entity first
+- Check browser console for detailed error messages
+
+### Excel File Issues
+
+**Issue**: Exported Excel file won't open or is corrupted
+
+**Solution**:
+
+- Try using CSV format instead to isolate the issue
+- Verify your Excel version supports the .xlsx format
+- Try opening the file with Excel Online first
+- Check that no special characters are causing issues
+
+### CSV Export Issues
+
+**Issue**: CSV file won't unzip or contains corrupted data
+
+**Solution**:
+
+- Verify your system has a working ZIP extraction utility
+- Try exporting again with fewer entities
+- Use Excel to open individual CSV files directly
+- Check for special characters in entity/field names
+
+## Best Practices
+
+1. **Document Everything**: Use this tool to create comprehensive entity/field documentation
+2. **Solution-Based**: Export solutions separately for better organization
+3. **Backup Reference**: Keep exports as reference documentation for your Dataverse schema
+4. **Version Control**: Track exports over time to monitor schema changes
+5. **Share Widely**: Use CSV format for sharing with non-Excel users
+
+## Contributing
+
+Contributions are welcome! When contributing:
+
+1. Maintain PPTB integration patterns
+2. Keep webview bundle browser-only (no Node.js dependencies)
+3. Test in Power Platform ToolBox
+4. Update documentation as needed
+5. Follow existing code style
+
+## License
+
+This project is licensed under the GPL-2.0 License - see the [LICENSE](../../LICENSE) file for details.
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/Power-Maverick/PPTB-Tools/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Power-Maverick/PPTB-Tools/discussions)
 
 ### Field Details (per entity)
 
