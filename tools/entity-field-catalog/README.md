@@ -35,7 +35,7 @@ Export entity and field metadata from Dataverse solutions to Excel format with c
 
 ## UI Preview
 
-![Entity Field Catalog Screenshot](/assets/entityFieldCatalog.png)
+![Entity Field Catalog Screenshot](https://github.com/Power-Maverick/PPTB-Tools/raw/main/assets/entityFieldCatalog.png)
 
 ## Features
 

@@ -5,6 +5,7 @@ Copy the layout of one Dataverse view to multiple other views of the same table 
 ## Table of Contents
 
 - [View Layout Copier](#view-layout-copier)
+    - [Table of Contents](#table-of-contents)
     - [UI Preview](#ui-preview)
     - [Features](#features)
     - [Installation](#installation)
@@ -16,13 +17,19 @@ Copy the layout of one Dataverse view to multiple other views of the same table 
         - [Smart Query Merging](#smart-query-merging)
     - [Technical Stack](#technical-stack)
     - [Troubleshooting](#troubleshooting)
+        - [Copy Operation Fails](#copy-operation-fails)
+        - [Layout Not Applied](#layout-not-applied)
+        - [Sort Order Not Copied](#sort-order-not-copied)
+        - [Filters Appearing on Target](#filters-appearing-on-target)
+        - [Component Configuration Issues](#component-configuration-issues)
+    - [Best Practices](#best-practices)
     - [Contributing](#contributing)
     - [License](#license)
     - [Support](#support)
 
 ## UI Preview
 
-![View Layout Copier demo](/assets/viewLayoutCopier.gif)
+![View Layout Copier demo](https://github.com/Power-Maverick/PPTB-Tools/raw/main/assets/viewLayoutCopier.gif)
 
 ## Features
 

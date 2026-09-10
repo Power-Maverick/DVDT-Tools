@@ -5,6 +5,7 @@ Migrate data from one Dataverse environment to another with intelligent auto-map
 ## Table of Contents
 
 - [Data Migrator](#data-migrator)
+    - [Table of Contents](#table-of-contents)
     - [UI Preview](#ui-preview)
     - [Features](#features)
     - [Installation](#installation)
@@ -16,14 +17,21 @@ Migrate data from one Dataverse environment to another with intelligent auto-map
         - [Lookup Field Handling](#lookup-field-handling)
     - [Technical Stack](#technical-stack)
     - [Configuration](#configuration)
+        - [Filter Options](#filter-options)
+        - [Batch Settings](#batch-settings)
     - [Troubleshooting](#troubleshooting)
+        - [Migration Fails](#migration-fails)
+        - [Lookup Mapping Issues](#lookup-mapping-issues)
+        - [Performance Issues](#performance-issues)
+        - [Connection Issues](#connection-issues)
+    - [Best Practices](#best-practices)
     - [Contributing](#contributing)
     - [License](#license)
     - [Support](#support)
 
 ## UI Preview
 
-![Data Migrator demo](/assets/dataMigrator.gif)
+![Data Migrator demo](https://github.com/Power-Maverick/PPTB-Tools/raw/main/assets/dataMigrator.gif)
 
 ## Features
 
