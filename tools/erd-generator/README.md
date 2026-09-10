@@ -1,3 +1,7 @@
+# Dataverse ERD Generator
+
+A PowerPlatform ToolBox tool for loading Dataverse solutions into a graph-first ERD editor, applying in-memory schema changes, and exporting diagrams in multiple formats.
+
 - [Dataverse ERD Generator](#dataverse-erd-generator)
     - [UI Preview](#ui-preview)
     - [Features](#features)
@@ -26,13 +30,9 @@
     - [License](#license)
     - [Support](#support)
 
-# Dataverse ERD Generator
-
-A PowerPlatform ToolBox tool for loading Dataverse solutions into a graph-first ERD editor, applying in-memory schema changes, and exporting diagrams in multiple formats.
-
 ## UI Preview
 
-![ERD Generator demo](/assets/erdGenerator.gif)
+![ERD Generator demo](https://github.com/Power-Maverick/PPTB-Tools/blob/main/assets/erdGenerator.gif?raw=true)
 
 ## Features
 
