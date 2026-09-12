@@ -27,9 +27,6 @@ import { ExportMode, OutputFormat, VisualExportType } from "./utils/visualExport
 
 declare global {
     interface Window {
-        acquireVsCodeApi?: () => {
-            postMessage: (message: any) => void;
-        };
         mermaid?: {
             initialize: (config: any) => void;
             init: (config: any, element: HTMLElement | null) => Promise<void>;
@@ -369,7 +366,6 @@ function App() {
         setIsPPTB,
         setLoading,
         setConnectionUrl,
-        setAccessToken,
         setError,
     });
 

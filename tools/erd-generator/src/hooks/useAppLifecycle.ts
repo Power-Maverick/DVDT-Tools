@@ -98,33 +98,12 @@ interface UseEnvironmentInitParams {
     setIsPPTB: Dispatch<SetStateAction<boolean>>;
     setLoading: Dispatch<SetStateAction<boolean>>;
     setConnectionUrl: Dispatch<SetStateAction<string>>;
-    setAccessToken: Dispatch<SetStateAction<string>>;
     setError: Dispatch<SetStateAction<string>>;
 }
 
 export function useEnvironmentInitialization(params: UseEnvironmentInitParams) {
     useEffect(() => {
-        let cleanup: (() => void) | null = null;
-
         const initializeEnvironment = async () => {
-            if (typeof window.acquireVsCodeApi !== "undefined") {
-                params.setIsPPTB(false);
-                params.setLoading(true);
-
-                const handleMessage = (event: MessageEvent) => {
-                    const message = event.data;
-                    if (message.command === "setCredentials") {
-                        params.setConnectionUrl(message.environmentUrl);
-                        params.setAccessToken(message.accessToken);
-                        params.setLoading(false);
-                    }
-                };
-
-                window.addEventListener("message", handleMessage);
-                cleanup = () => window.removeEventListener("message", handleMessage);
-                return;
-            }
-
             if (window.toolboxAPI) {
                 params.setIsPPTB(true);
                 try {
@@ -137,13 +116,12 @@ export function useEnvironmentInitialization(params: UseEnvironmentInitParams) {
                 return;
             }
 
-            params.setError("Not running in supported environment (DVDT or PPTB)");
+            params.setError("Not running in PowerPlatform ToolBox");
             params.setLoading(false);
         };
 
         void initializeEnvironment();
-        return () => cleanup?.();
-    }, [params.setIsPPTB, params.setLoading, params.setConnectionUrl, params.setAccessToken, params.setError]);
+    }, [params.setIsPPTB, params.setLoading, params.setConnectionUrl, params.setError]);
 }
 
 interface UseSolutionsLoaderParams {
